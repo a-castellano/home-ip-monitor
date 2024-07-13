@@ -119,7 +119,7 @@ func TestIPAlreadyInDatabase(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError != nil {
 		t.Errorf("TestIPAlreadyInDatabase should not fail.")
@@ -143,7 +143,7 @@ func TestIPInDatabaseNotSameAsReaded(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError != nil {
 		t.Errorf("TestIPAlreadyInDatabase should not fail, error was \"%s\".", monitorError.Error())
@@ -167,7 +167,7 @@ func TestIPDifferentISP(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError != nil {
 		t.Errorf("TestIPAlreadyInDatabase should not fail, error was \"%s\".", monitorError.Error())
@@ -191,7 +191,7 @@ func TestInvalidISP(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestIPAlreadyInDatabase should fail.")
@@ -215,7 +215,7 @@ func TestErrorRedisSet(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestErrorRedisSet should fail.")
@@ -239,7 +239,7 @@ func TestErrorRedisGet(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestErrorRedisSet should fail.")
@@ -263,7 +263,7 @@ func TestNotifyError(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: true}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, appConfig)
+	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestIPAlreadyInDatabase should fail.")
