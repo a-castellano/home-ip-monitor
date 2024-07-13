@@ -23,34 +23,33 @@ func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, memoryDataba
 	if ipInfo.OrgName != appConfig.ISPName {
 		notifyMessage := []byte(fmt.Sprintf("Readed IP %s belongs to %s ISP, it seems than home is not using main ISP %s.", ipInfo.IP, ipInfo.OrgName, appConfig.ISPName))
 		notifyError := notify.Notify(messageBroker, appConfig.NotifyQueue, notifyMessage)
+		// end function, if notifyError is nill, final error is also nil asexpected
+		return notifyError
+	}
+
+	requireUpdate, storageError := storage.CheckDatabase(ctx, ipInfo.IP, memoryDatabase)
+	if storageError != nil {
+		return storageError
+	}
+	if requireUpdate {
+
+		notifyMessage := []byte(fmt.Sprintf("Home IP has changed to %s.", ipInfo.IP))
+		encodedIP := []byte(ipInfo.IP)
+		notifyError := notify.Notify(messageBroker, appConfig.NotifyQueue, notifyMessage)
 		if notifyError != nil {
 			return notifyError
 		}
-	} else {
-		requireUpdate, storageError := storage.CheckDatabase(ctx, ipInfo.IP, memoryDatabase)
-		if storageError != nil {
-			return storageError
+		notifyError = notify.Notify(messageBroker, appConfig.UpdateQueue, encodedIP)
+		if notifyError != nil {
+			return notifyError
 		}
-		if requireUpdate {
 
-			notifyMessage := []byte(fmt.Sprintf("Home IP has changed to %s.", ipInfo.IP))
-			encodedIP := []byte(ipInfo.IP)
-			notifyError := notify.Notify(messageBroker, appConfig.NotifyQueue, notifyMessage)
-			if notifyError != nil {
-				return notifyError
-			}
-			notifyError = notify.Notify(messageBroker, appConfig.UpdateQueue, encodedIP)
-			if notifyError != nil {
-				return notifyError
-			}
+		// Update IP only after notify
 
-			// Update IP only after notify
+		updateError := storage.UpdateIP(ctx, ipInfo.IP, memoryDatabase)
 
-			updateError := storage.UpdateIP(ctx, ipInfo.IP, memoryDatabase)
-
-			if updateError != nil {
-				return updateError
-			}
+		if updateError != nil {
+			return updateError
 		}
 	}
 
