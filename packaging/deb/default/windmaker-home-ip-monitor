@@ -1,0 +1,26 @@
+# windmaker-home-ip-monitor
+#
+# Required env variables
+# Check Docs:
+# https://git.windmaker.net/a-castellano/home-ip-monitor
+#
+
+#ISP_NAME="DIGI"
+
+UPDATE_QUEUE_NAME="home-ip-monitor-updates"
+NOTIFY_QUEUE_NAME="home-ip-monitor-notifications"
+
+# Redis config
+
+REDIS_HOST="127.0.0.1" 
+REDIS_PORT=6379
+REDIS_PASSWORD=""
+REDIS_DATABASE=10
+
+
+# RabbitMQ config
+
+RABBITMQ_HOST="localhost"
+RABBITMQ_PORT=5672
+RABBITMQ_USER="guest"
+RABBITMQ_PASSWORD="guest"

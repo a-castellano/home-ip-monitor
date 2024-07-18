@@ -1,0 +1,28 @@
+name: "windmaker-home-ip-monitor"
+arch: "amd64"
+platform: "linux"
+version: "v0.0.1"
+section: "default"
+priority: "extra"
+provides:
+- secutiycambot
+maintainer: "Álvaro Castellano Vela <alvaro.castellano.vela@gmail.com>"
+description: |
+  This program checks if my Home IP changes, notify if IP and ISP changes.
+vendor: "Windmaker"
+homepage: "https://git.windmaker.net/a-castellano/home-ip-monitor"
+license: "GPLV3"
+changelog: "changelog.yaml"
+contents:
+- src: ./home-ip-monitor
+  dst: /usr/local/bin/windmaker-home-ip-monitor
+- src: ./packaging/deb/default/windmaker-home-ip-monitor
+  dst: /etc/default/windmaker-home-ip-monitor
+- src: ./packaging/deb/systemd/windmaker-home-ip-monitor.service
+  dst: /usr/lib/systemd/system/windmaker-home-ip-monitor.service
+- src: ./packaging/deb/systemd/windmaker-home-ip-monitor.timer
+  dst: /usr/lib/systemd/system/windmaker-home-ip-monitor.timer
+overrides:
+  deb:
+    scripts:
+      postinstall: ./packaging/deb/scripts/postinstall.sh
