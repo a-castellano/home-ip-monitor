@@ -1,0 +1,15 @@
+[Unit]
+Description=Windmaker Home IP Monitor Timer
+Documentation=https://git.windmaker.net/a-castellano/home-ip-monitor
+Requires=windmaker-home-ip-monitor.service
+After=nss-lookup.target
+After=network-online.target
+After=rabbitmq-server.service
+After=redis-server.service
+
+[Timer]
+Unit=windmaker-home-ip-monitor.service
+OnCalendar=*:0/2
+
+[Install]
+WantedBy=timers.target
