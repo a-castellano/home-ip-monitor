@@ -1,18 +1,27 @@
+- semver: 0.0.3
+  date: 2024-12-31T09:20:00+01:00
+  packager: Álvaro Castellano Vela <alvaro.castellano.vela@gmail>
+  changes:
+    - note: |-
+        Remove Opentelemetry, update to go 1.23
+      author:
+        name: Álvaro Castellano Vela
+        email: alvaro.castellano.vela@gmail.com
 - semver: 0.0.2
   date: 2024-07-20T08:45:00+02:00
   packager: Álvaro Castellano Vela <alvaro.castellano.vela@gmail>
   changes:
-  - note: |-
-      Add OpenTelemetry
-    author:
-      name: Álvaro Castellano Vela
-      email: alvaro.castellano.vela@gmail.com
+    - note: |-
+        Add OpenTelemetry
+      author:
+        name: Álvaro Castellano Vela
+        email: alvaro.castellano.vela@gmail.com
 - semver: 0.0.1
   date: 2024-07-17T22:36:00+02:00
   packager: Álvaro Castellano Vela <alvaro.castellano.vela@gmail>
   changes:
-  - note: |-
-      First release
-    author:
-      name: Álvaro Castellano Vela
-      email: alvaro.castellano.vela@gmail.com
+    - note: |-
+        First release
+      author:
+        name: Álvaro Castellano Vela
+        email: alvaro.castellano.vela@gmail.com

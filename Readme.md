@@ -1,16 +1,16 @@
 # Home IP Monitor
 
-[![pipeline status](https://git.windmaker.net/a-castellano/home-ip-monitor/badges/master/pipeline.svg)](https://git.windmaker.net/a-castellano/home-ip-monitor/pipelines)[![coverage report](https://git.windmaker.net/a-castellano/home-ip-monitor/badges/master/coverage.svg)](https://a-castellano.gitpages.windmaker.net/home-ip-monitor/coverage.html)[![Quality Gate Status](https://sonarqube.windmaker.net/api/project_badges/measure?project=home-ip-monitor&metric=alert_status)](https://sonarqube.windmaker.net/dashboard?id=home-ip-monitor)
+[![pipeline status](https://git.windmaker.net/a-castellano/home-ip-monitor/badges/master/pipeline.svg)](https://git.windmaker.net/a-castellano/home-ip-monitor/pipelines)[![coverage report](https://git.windmaker.net/a-castellano/home-ip-monitor/badges/master/coverage.svg)](https://a-castellano.gitpages.windmaker.net/home-ip-monitor/coverage.html)[![Quality Gate Status](https://sonarqube.windmaker.net/api/project_badges/measure?project=a-castellano_home-ip-monitor_a0d9946c-4181-4181-af10-e5dac69d0658&metric=alert_status&token=sqb_991ee37d1ea08ee63db5ea610f2a2d9e49fe1430)](https://sonarqube.windmaker.net/dashboard?id=a-castellano_home-ip-monitor_a0d9946c-4181-4181-af10-e5dac69d0658)
 
 This program checks if my Home IP changes, notify if IP and ISP changes.
 
 # What this progam does?
 
 This program fetch my public IP, checks if it has changed since last check.
-* If IP has changed and it belongs to required ISP, IP is updated and notified.
-* If new IP belogns to different ISP it only notifies
-* Otherwise this program does nothing.
 
+- If IP has changed and it belongs to required ISP, IP is updated and notified.
+- If new IP belogns to different ISP it only notifies
+- Otherwise this program does nothing.
 
 # Required variables
 
