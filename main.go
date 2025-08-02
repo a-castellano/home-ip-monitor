@@ -9,7 +9,7 @@ import (
 	"time"
 
 	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
-	"github.com/a-castellano/go-services/messagebroker"
+	messagebroker "github.com/a-castellano/go-services/messagebroker"
 	config "github.com/a-castellano/home-ip-monitor/config"
 	"github.com/a-castellano/home-ip-monitor/ipinfo"
 	"github.com/a-castellano/home-ip-monitor/monitor"
@@ -58,7 +58,7 @@ func main() {
 	memoryDatabase := memorydatabase.NewMemoryDatabase(&redisClient)
 
 	log.Print("Creating RabbitMQ client")
-	rabbitmqClient := messagebroker.NewRabbimqClient(appConfig.RabbitmqConfig)
+	rabbitmqClient := messagebroker.NewRabbitmqClient(appConfig.RabbitmqConfig)
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmqClient}
 
 	monitorError := monitor.Monitor(ctx, requester, memoryDatabase, messageBroker, appConfig)
