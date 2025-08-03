@@ -1,4 +1,4 @@
-//go:build integration_tests || nslookup_tests || nslookup_unit_tests
+//go:build integration_tests || nslookup_tests
 
 package nslookup
 
@@ -23,5 +23,19 @@ func TestGetIP(t *testing.T) {
 		if ip != expectedIP {
 			t.Errorf("GetIP returned %s, expected %s", ip, expectedIP)
 		}
+	}
+}
+
+func TestGetIPBadDNS(t *testing.T) {
+
+	dnsLookup := DNSLookup{DNSServer: "127.0.0.1:53"}
+
+	ctx := context.Background()
+
+	domain := "test.windmaker.net"
+
+	_, err := GetIP(ctx, &dnsLookup, domain)
+	if err == nil {
+		t.Errorf("GetIP should fail resolving test.windmaker.net from bad DNS server: %v", err)
 	}
 }
