@@ -15,6 +15,7 @@ type Config struct {
 	ISPName        string // home-ip-monitor will send new IP values to be updated if associated ISP is the same than this value
 	UpdateQueue    string // This will be the queue used to send IP changes
 	NotifyQueue    string // This will be the queue used to notify IP or ISP changes
+	DNSServer      string // This will be the external DNS Server used to notify for checking if home IP values mismatch
 	RedisConfig    *redisconfig.Config
 	RabbitmqConfig *rabbitmqconfig.Config
 }
@@ -31,6 +32,14 @@ func NewConfig() (*Config, error) {
 		return nil, errors.New("env variable ISP_NAME must be set")
 	}
 	log.Printf("ISP name has been set to \"%s\"", config.ISPName)
+
+	// Retrieve DNSServer
+	config.DNSServer = cmp.Or(os.Getenv("DNS_SERVER"), "no_set")
+
+	if config.DNSServer == "no_set" {
+		return nil, errors.New("env variable DNS_SERVER must be set")
+	}
+	log.Printf("DNS Server has been set to \"%s\"", config.DNSServer)
 
 	// Retrieve UpdateQueue name, default is home-ip-monitor-updates
 	config.UpdateQueue = cmp.Or(os.Getenv("UPDATE_QUEUE_NAME"), "home-ip-monitor-updates")

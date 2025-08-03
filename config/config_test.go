@@ -10,6 +10,9 @@ import (
 var currentISPName string
 var currentISPNameDefined bool
 
+var currentDNSServer string
+var currentDNSServerDefined bool
+
 var currentUpdateQueue string
 var currentUpdateQueueDefined bool
 
@@ -47,6 +50,13 @@ func setUp() {
 		currentISPNameDefined = true
 	} else {
 		currentISPNameDefined = false
+	}
+
+	if envDNSServer, found := os.LookupEnv("DNS_SERVER"); found {
+		currentDNSServer = envDNSServer
+		currentDNSServerDefined = true
+	} else {
+		currentDNSServerDefined = false
 	}
 
 	if envUpdateQueue, found := os.LookupEnv("UPDATE_QUEUE_NAME"); found {
@@ -120,6 +130,7 @@ func setUp() {
 	}
 
 	os.Unsetenv("ISP_NAME")
+	os.Unsetenv("DNS_SERVER")
 	os.Unsetenv("UPDATE_QUEUE_NAME")
 	os.Unsetenv("NOTIFY_QUEUE_NAME")
 
@@ -141,6 +152,12 @@ func teardown() {
 		os.Setenv("ISP_NAME", currentISPName)
 	} else {
 		os.Unsetenv("ISP_NAME")
+	}
+
+	if currentDNSServerDefined {
+		os.Setenv("DNS_SERVER", currentDNSServer)
+	} else {
+		os.Unsetenv("DNS_SERVER")
 	}
 
 	if currentUpdateQueueDefined {
@@ -228,6 +245,7 @@ func TestConfigWithInvalidRedisPort(t *testing.T) {
 	defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
 	os.Setenv("REDIS_PORT", "invalidport")
 	_, err := NewConfig()
 
@@ -247,6 +265,7 @@ func TestConfigWithInvalidRabbitmqPort(t *testing.T) {
 	defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
 	os.Setenv("RABBITMQ_PORT", "invalidport")
 	_, err := NewConfig()
 
@@ -260,12 +279,31 @@ func TestConfigWithInvalidRabbitmqPort(t *testing.T) {
 
 }
 
+func TestConfigwithoutDNSServer(t *testing.T) {
+
+	setUp()
+	defer teardown()
+
+	os.Setenv("ISP_NAME", "DIGI")
+	_, err := NewConfig()
+
+	if err == nil {
+		t.Errorf("TestConfigwithoutDNSServer should fail.")
+	} else {
+		if err.Error() != "env variable DNS_SERVER must be set" {
+			t.Errorf("TestConfigWithoutEnvVariables error should be \"env variable DNS_SERVER must be set\" but it was \"%s\".", err.Error())
+		}
+	}
+
+}
+
 func TestConfig(t *testing.T) {
 
 	setUp()
 	defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
 	config, err := NewConfig()
 
 	if err != nil {
