@@ -354,7 +354,7 @@ func TestIPOK(t *testing.T) {
 
 		ctx := context.Background()
 
-		nsLookup := nslookup.DNSLookup{DNSServer: appConfig.DNSServer}
+		nsLookup := MockResolver{Response: "1.1.1.1", ResponseError: nil}
 
 		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
 
