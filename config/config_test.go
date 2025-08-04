@@ -335,6 +335,25 @@ func TestConfigwithoutDomainName(t *testing.T) {
 
 }
 
+func TestConfigwithoutISPName(t *testing.T) {
+
+	setUp()
+	defer teardown()
+
+	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
+	_, err := NewConfig()
+
+	if err == nil {
+		t.Errorf("TestConfigwithoutISPName should fail.")
+	} else {
+		if err.Error() != "env variable ISP_NAME must be set" {
+			t.Errorf("TestConfigwithoutISPName error should be \"env variable ISP_NAME must be set\" but it was \"%s\".", err.Error())
+		}
+	}
+
+}
+
 func TestConfig(t *testing.T) {
 
 	setUp()
