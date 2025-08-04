@@ -12,7 +12,7 @@ type DNSLookup struct {
 }
 
 // getIP retrieves the IP address from the DNS lookup
-func (dnsLookup *DNSLookup) getIP(ctx context.Context, domain string) (string, error) {
+func (dnsLookup DNSLookup) GetIP(ctx context.Context, domain string) (string, error) {
 
 	var ip string = ""
 
@@ -38,12 +38,12 @@ func (dnsLookup *DNSLookup) getIP(ctx context.Context, domain string) (string, e
 
 // NSLookup is an interface that defines the method to retrieve IP information
 type NSLookup interface {
-	getIP(context.Context, string) (string, error)
+	GetIP(context.Context, string) (string, error)
 }
 
 // GetIP retrieves the IP address using the provided NSLookup interface
 func GetIP(ctx context.Context, nsLookup NSLookup, domain string) (string, error) {
 
-	return nsLookup.getIP(ctx, domain)
+	return nsLookup.GetIP(ctx, domain)
 
 }

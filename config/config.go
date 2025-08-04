@@ -12,6 +12,7 @@ import (
 
 // Config struct contians required config variables
 type Config struct {
+	DomainName     string // The domain that should be used to check if home IP values mismatch
 	ISPName        string // home-ip-monitor will send new IP values to be updated if associated ISP is the same than this value
 	UpdateQueue    string // This will be the queue used to send IP changes
 	NotifyQueue    string // This will be the queue used to notify IP or ISP changes
@@ -24,6 +25,14 @@ type Config struct {
 func NewConfig() (*Config, error) {
 	config := Config{}
 	var redisConfigErr, rabbitmqConfigErr error
+
+	// Retrieve DomainName
+	config.DomainName = cmp.Or(os.Getenv("DOMAIN_NAME"), "no_set")
+
+	if config.DomainName == "no_set" {
+		return nil, errors.New("env variable DOMAIN_NAME must be set")
+	}
+	log.Printf("Domain name has been set to \"%s\"", config.DomainName)
 
 	// Retrieve ISPName
 	config.ISPName = cmp.Or(os.Getenv("ISP_NAME"), "no_set")

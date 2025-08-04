@@ -13,7 +13,7 @@ type MockResolver struct {
 	ResponseError error
 }
 
-func (mock *MockResolver) getIP(ctx context.Context, domain string) (string, error) {
+func (mock MockResolver) GetIP(ctx context.Context, domain string) (string, error) {
 	return mock.Response, mock.ResponseError
 }
 

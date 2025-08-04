@@ -10,10 +10,11 @@ import (
 	config "github.com/a-castellano/home-ip-monitor/config"
 	ipinfo "github.com/a-castellano/home-ip-monitor/ipinfo"
 	notify "github.com/a-castellano/home-ip-monitor/notify"
+	nslookup "github.com/a-castellano/home-ip-monitor/nslookup"
 	storage "github.com/a-castellano/home-ip-monitor/storage"
 )
 
-func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, memoryDatabase memorydatabase.MemoryDatabase, messageBroker messagebroker.MessageBroker, appConfig *config.Config) error {
+func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, nsLookup nslookup.NSLookup, memoryDatabase memorydatabase.MemoryDatabase, messageBroker messagebroker.MessageBroker, appConfig *config.Config) error {
 
 	log.Print("Retrieving IP info")
 	ipInfo, ipInfoError := ipinfo.RetireveIPInfoFromResponse(ipInfoRequester)
@@ -40,6 +41,22 @@ func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, memoryDataba
 	}
 
 	log.Printf("IP update required: %v", requireUpdate)
+
+	if !requireUpdate {
+		log.Printf("Cheking if remote IP matches with stored IP.")
+		remoteIP, nsLookupError := nslookup.GetIP(ctx, nsLookup, appConfig.DomainName)
+		if nsLookupError != nil {
+			return nsLookupError
+		}
+
+		if remoteIP != ipInfo.IP {
+			log.Printf("Remote IP %s does not match with stored IP %s.", remoteIP, ipInfo.IP)
+			requireUpdate = true
+		} else {
+			log.Print("Remote IP matches with stored IP, no update required.")
+		}
+
+	}
 
 	if requireUpdate {
 

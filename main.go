@@ -10,6 +10,8 @@ import (
 
 	"github.com/a-castellano/home-ip-monitor/app"
 	config "github.com/a-castellano/home-ip-monitor/config"
+	ipinfo "github.com/a-castellano/home-ip-monitor/ipinfo"
+	"github.com/a-castellano/home-ip-monitor/nslookup"
 )
 
 const serviceName = "home-ip-monitor"
@@ -40,9 +42,13 @@ func main() {
 		Timeout: time.Second * 5, // Maximum of 5 secs
 	}
 
+	requester := ipinfo.Realrequester{Client: httpClient}
+
+	log.Print("Defining nslookup client")
+	nsLookup := nslookup.DNSLookup{DNSServer: appConfig.DNSServer}
 	ctx := context.Background()
 
-	if app.Monitor(ctx, httpClient, appConfig) != nil {
+	if app.Monitor(ctx, requester, nsLookup, appConfig) != nil {
 		log.Print("Error running monitor")
 		os.Exit(1)
 	}

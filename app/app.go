@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 
 	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
@@ -11,11 +10,11 @@ import (
 	config "github.com/a-castellano/home-ip-monitor/config"
 	"github.com/a-castellano/home-ip-monitor/ipinfo"
 	"github.com/a-castellano/home-ip-monitor/monitor"
+	"github.com/a-castellano/home-ip-monitor/nslookup"
 )
 
-func Monitor(ctx context.Context, httpClient http.Client, appConfig *config.Config) error {
+func Monitor(ctx context.Context, requester ipinfo.Requester, nsLookup nslookup.NSLookup, appConfig *config.Config) error {
 
-	requester := ipinfo.Realrequester{Client: httpClient}
 	log.Print("Creating Redis client")
 	redisClient := memorydatabase.NewRedisClient(appConfig.RedisConfig)
 	log.Print("Initiating Redis client")
@@ -30,7 +29,7 @@ func Monitor(ctx context.Context, httpClient http.Client, appConfig *config.Conf
 	rabbitmqClient := messagebroker.NewRabbitmqClient(appConfig.RabbitmqConfig)
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmqClient}
 
-	monitorError := monitor.Monitor(ctx, requester, memoryDatabase, messageBroker, appConfig)
+	monitorError := monitor.Monitor(ctx, requester, nsLookup, memoryDatabase, messageBroker, appConfig)
 	if monitorError != nil {
 		log.Print(monitorError.Error())
 		os.Exit(1)
