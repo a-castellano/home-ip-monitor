@@ -335,12 +335,12 @@ func TestFailLookup(t *testing.T) {
 }
 
 func TestIPOK(t *testing.T) {
-	setUp()
-	defer teardown()
+	//	setUp()
+	//defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	os.Setenv("REDIS_IP", "172.17.0.2")
+	//os.Setenv("REDIS_IP", "valkey")
 	os.Setenv("RABBITMQ_HOST", "rabbitmq")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
 
