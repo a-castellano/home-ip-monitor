@@ -1,14 +1,65 @@
-//go:build integration_tests || unit_tests
+//go:build integration_tests
 
-package config
+package app
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	config "github.com/a-castellano/home-ip-monitor/config"
+	nslookup "github.com/a-castellano/home-ip-monitor/nslookup"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 )
 
-var currentDomainName string
-var currentDomainNameDefined bool
+type RoundTripperMock struct {
+	Response *http.Response
+	RespErr  error
+}
+
+func (rtm *RoundTripperMock) RoundTrip(*http.Request) (*http.Response, error) {
+	return rtm.Response, rtm.RespErr
+}
+
+type MockIPinfo struct {
+	provider string
+}
+
+func (m MockIPinfo) GetIPInfoResponse() (*http.Response, error) {
+
+	var client http.Client
+
+	switch m.provider {
+
+	case "Digi":
+		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`{"ip": "79.12.12.12","hostname": "79-12-12-12.digimobil.es","city": "Madrid","region": "Madrid","country": "ES","loc": "40.4165,-3.7026","org": "AS57269 DIGI SPAIN TELECOM S.L.","postal": "28087","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`))}}}
+
+	case "Telefonica":
+		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`{"ip": "95.12.12.12","hostname": "12.red-95-12-12.staticip.rima-tde.net","city": "Valencia","region": "Valencia","country": "ES","loc": "39.4739,-0.3797","org": "AS3352 TELEFONICA DE ESPANA S.A.U.","postal": "46001","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`))}}}
+
+	case "invalid":
+		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`{"nonsense": "json"}`))}}}
+
+	default:
+		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`"nonsense": "json"}`))}}}
+	}
+
+	request, _ := http.NewRequest("GET", "https://ipinfo.io/", nil)
+	response, responseError := client.Do(request)
+
+	return response, responseError
+}
+
+type MockResolver struct {
+	Response      string
+	ResponseError error
+}
+
+func (mock MockResolver) GetIP(ctx context.Context, domain string) (string, error) {
+	return mock.Response, mock.ResponseError
+}
 
 var currentISPName string
 var currentISPNameDefined bool
@@ -47,13 +98,6 @@ var currentRabbitmqPassword string
 var currentRabbitmqPasswordDefined bool
 
 func setUp() {
-
-	if envDomainName, found := os.LookupEnv("DOMAIN_NAME"); found {
-		currentDomainName = envDomainName
-		currentDomainNameDefined = true
-	} else {
-		currentDomainNameDefined = false
-	}
 
 	if envISPName, found := os.LookupEnv("ISP_NAME"); found {
 		currentISPName = envISPName
@@ -158,12 +202,6 @@ func setUp() {
 
 func teardown() {
 
-	if currentDomainNameDefined {
-		os.Setenv("DOMAIN_NAME", currentDomainName)
-	} else {
-		os.Unsetenv("DOMAIN_NAME")
-	}
-
 	if currentISPNameDefined {
 		os.Setenv("ISP_NAME", currentISPName)
 	} else {
@@ -238,145 +276,90 @@ func teardown() {
 
 }
 
-func TestConfigWithoutEnvVariables(t *testing.T) {
-
-	setUp()
-	defer teardown()
-
-	_, err := NewConfig()
-
-	if err == nil {
-		t.Errorf("TestConfigWithoutEnvVariables should fail.")
-	} else {
-		if err.Error() != "env variable DOMAIN_NAME must be set" {
-			t.Errorf("TestConfigWithoutEnvVariables error should be \"env variable DOMAIN_NAME must be set\" but it was \"%s\".", err.Error())
-		}
-	}
-
-}
-
-func TestConfigWithInvalidRedisPort(t *testing.T) {
-
+func TestFailRedis(t *testing.T) {
 	setUp()
 	defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
+	os.Setenv("REDIS_HOST", "non-redis-host")
+	os.Setenv("RABBITMQ_HOST", "rabbitmq")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	os.Setenv("REDIS_PORT", "invalidport")
-	_, err := NewConfig()
 
-	if err == nil {
-		t.Errorf("TestConfigWithInvalidRedisPort should fail.")
+	appConfig, configErr := config.NewConfig()
+
+	if configErr != nil {
+		t.Errorf("TestFailRedis config setup should not fail, but it did with error: %s", configErr.Error())
 	} else {
-		if err.Error() != "strconv.Atoi: parsing \"invalidport\": invalid syntax" {
-			t.Errorf("TestConfigWithInvalidRedisPort error should be \"strconv.Atoi: parsing \"invalidport\": invalid syntax\" but it was \"%s\".", err.Error())
+		digiRequester := MockIPinfo{provider: "Digi"}
+
+		ctx := context.Background()
+
+		nsLookup := nslookup.DNSLookup{DNSServer: appConfig.DNSServer}
+
+		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
+
+		if monitorError == nil {
+			t.Errorf("TestFailRedis should fail.")
 		}
 	}
-
 }
 
-func TestConfigWithInvalidRabbitmqPort(t *testing.T) {
-
+func TestIPOK(t *testing.T) {
 	setUp()
 	defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
+	os.Setenv("REDIS_HOST", "valkey")
+	os.Setenv("RABBITMQ_HOST", "rabbitmq")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	os.Setenv("RABBITMQ_PORT", "invalidport")
-	_, err := NewConfig()
 
-	if err == nil {
-		t.Errorf("TestConfigWithInvalidRabbitmqPort should fail.")
+	appConfig, configErr := config.NewConfig()
+
+	if configErr != nil {
+		t.Errorf("TestIPOK should not fail, but it did with error: %s", configErr.Error())
 	} else {
-		if err.Error() != "strconv.Atoi: parsing \"invalidport\": invalid syntax" {
-			t.Errorf("TestConfigWithInvalidRabbitmqPort error should be \"strconv.Atoi: parsing \"invalidport\": invalid syntax\" but it was \"%s\".", err.Error())
+
+		digiRequester := MockIPinfo{provider: "Digi"}
+
+		ctx := context.Background()
+
+		nsLookup := MockResolver{Response: "1.1.1.1", ResponseError: nil}
+
+		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
+
+		if monitorError != nil {
+			t.Errorf("TestIPOK should not fail.")
 		}
 	}
-
 }
 
-func TestConfigwithoutDNSServer(t *testing.T) {
-
-	setUp()
-	defer teardown()
-
-	os.Setenv("ISP_NAME", "DIGI")
-	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	_, err := NewConfig()
-
-	if err == nil {
-		t.Errorf("TestConfigwithoutDNSServer should fail.")
-	} else {
-		if err.Error() != "env variable DNS_SERVER must be set" {
-			t.Errorf("TestConfigwithoutDNSServer error should be \"env variable DNS_SERVER must be set\" but it was \"%s\".", err.Error())
-		}
-	}
-
-}
-
-func TestConfigwithoutDomainName(t *testing.T) {
-
+func TestFailLookup(t *testing.T) {
 	setUp()
 	defer teardown()
 
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	_, err := NewConfig()
-
-	if err == nil {
-		t.Errorf("TestConfigwithoutDomainName should fail.")
-	} else {
-		if err.Error() != "env variable DOMAIN_NAME must be set" {
-			t.Errorf("TestConfigwithoutDomainName error should be \"env variable DOMAIN_NAME must be set\" but it was \"%s\".", err.Error())
-		}
-	}
-
-}
-
-func TestConfigwithoutISPName(t *testing.T) {
-
-	setUp()
-	defer teardown()
-
+	os.Setenv("REDIS_HOST", "valkey")
+	os.Setenv("RABBITMQ_HOST", "rabbitmq")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	_, err := NewConfig()
 
-	if err == nil {
-		t.Errorf("TestConfigwithoutISPName should fail.")
+	appConfig, configErr := config.NewConfig()
+
+	if configErr != nil {
+		t.Errorf("TestFailRedis config setup should not fail, but it did with error: %s", configErr.Error())
 	} else {
-		if err.Error() != "env variable ISP_NAME must be set" {
-			t.Errorf("TestConfigwithoutISPName error should be \"env variable ISP_NAME must be set\" but it was \"%s\".", err.Error())
+		digiRequester := MockIPinfo{provider: "Digi"}
+
+		ctx := context.Background()
+
+		nsLookup := MockResolver{Response: "", ResponseError: errors.New("DNS lookup failed")}
+
+		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
+
+		if monitorError == nil {
+			t.Errorf("TestFailLookup should fail.")
 		}
 	}
-
-}
-
-func TestConfig(t *testing.T) {
-
-	setUp()
-	defer teardown()
-
-	os.Setenv("ISP_NAME", "DIGI")
-	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	config, err := NewConfig()
-
-	if err != nil {
-		t.Errorf("TestConfigWithoutEnvVariables should not fail.")
-	} else {
-		if config.ISPName != "DIGI" {
-			t.Errorf("config.ISPName \"DIGI\" but it was \"%s\".", config.ISPName)
-		}
-		if config.UpdateQueue != "home-ip-monitor-updates" {
-			t.Errorf("config.UpdateQueue \"home-ip-monitor-updates\" but it was \"%s\".", config.UpdateQueue)
-		}
-		if config.NotifyQueue != "home-ip-monitor-notifications" {
-			t.Errorf("config.NotifyQueue \"home-ip-monitor-notifications\" but it was \"%s\".", config.NotifyQueue)
-		}
-
-	}
-
 }

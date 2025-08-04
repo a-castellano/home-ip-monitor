@@ -15,7 +15,7 @@ func TestIPInfoRequester(t *testing.T) {
 	}
 
 	requester := Realrequester{Client: client}
-	ipInfo, ipInfoErr := RetireveIPInfoFromResponse(requester)
+	ipInfo, ipInfoErr := RetrieveIPInfoFromResponse(requester)
 
 	if ipInfoErr != nil {
 		t.Errorf("TesttelefonicaRequester should not fail, error was \"%s\".", ipInfoErr.Error())

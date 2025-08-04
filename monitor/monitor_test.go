@@ -103,9 +103,18 @@ func (client RabbitmqMock) ReceiveMessages(ctx context.Context, queueName string
 	}
 }
 
+type MockResolver struct {
+	Response      string
+	ResponseError error
+}
+
+func (mock MockResolver) GetIP(ctx context.Context, domain string) (string, error) {
+	return mock.Response, mock.ResponseError
+}
+
 func TestIPAlreadyInDatabase(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "Digi"}
 
@@ -119,7 +128,9 @@ func TestIPAlreadyInDatabase(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError != nil {
 		t.Errorf("TestIPAlreadyInDatabase should not fail.")
@@ -128,7 +139,7 @@ func TestIPAlreadyInDatabase(t *testing.T) {
 
 func TestIPInDatabaseNotSameAsReaded(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "Digi"}
 
@@ -143,7 +154,9 @@ func TestIPInDatabaseNotSameAsReaded(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError != nil {
 		t.Errorf("TestIPAlreadyInDatabase should not fail, error was \"%s\".", monitorError.Error())
@@ -152,7 +165,7 @@ func TestIPInDatabaseNotSameAsReaded(t *testing.T) {
 
 func TestIPDifferentISP(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "Telefonica"}
 
@@ -167,7 +180,9 @@ func TestIPDifferentISP(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError != nil {
 		t.Errorf("TestIPAlreadyInDatabase should not fail, error was \"%s\".", monitorError.Error())
@@ -176,7 +191,7 @@ func TestIPDifferentISP(t *testing.T) {
 
 func TestInvalidISP(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "invalid"}
 
@@ -191,7 +206,8 @@ func TestInvalidISP(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestIPAlreadyInDatabase should fail.")
@@ -200,7 +216,7 @@ func TestInvalidISP(t *testing.T) {
 
 func TestErrorRedisSet(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "Digi"}
 
@@ -215,7 +231,8 @@ func TestErrorRedisSet(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestErrorRedisSet should fail.")
@@ -224,7 +241,7 @@ func TestErrorRedisSet(t *testing.T) {
 
 func TestErrorRedisGet(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "Digi"}
 
@@ -239,7 +256,8 @@ func TestErrorRedisGet(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestErrorRedisSet should fail.")
@@ -248,7 +266,7 @@ func TestErrorRedisGet(t *testing.T) {
 
 func TestNotifyError(t *testing.T) {
 
-	appConfig := config.Config{ISPName: "DIGI"}
+	appConfig := config.Config{ISPName: "DIGI", DomainName: "test.windmaker.net"}
 
 	digiRequester := MockIPinfo{provider: "Digi"}
 
@@ -263,7 +281,9 @@ func TestNotifyError(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: true}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	monitorError := Monitor(ctx, digiRequester, memoryDatabase, messageBroker, &appConfig)
+	nsLookup := MockResolver{Response: "79.12.12.12", ResponseError: nil}
+
+	monitorError := Monitor(ctx, digiRequester, nsLookup, memoryDatabase, messageBroker, &appConfig)
 
 	if monitorError == nil {
 		t.Errorf("TestIPAlreadyInDatabase should fail.")
