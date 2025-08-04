@@ -1,3 +1,13 @@
+- semver: 0.0.4
+  date: 2025-08-04T22:22:00+01:00
+  packager: Álvaro Castellano Vela <alvaro@windmaker.net>
+  changes:
+    - note: |-
+        Improve fallbacks, update to go 1.24
+      author:
+        name: Álvaro Castellano Vela
+        email: alvaro.castellano.vela@gmail.com
+
 - semver: 0.0.3
   date: 2024-12-31T09:20:00+01:00
   packager: Álvaro Castellano Vela <alvaro.castellano.vela@gmail>
