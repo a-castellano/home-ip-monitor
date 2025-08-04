@@ -42,6 +42,11 @@ unit_tests:
 
 integration_tests:
   stage: integration_tests
+  services:
+    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202507280511
+      alias: valkey
+    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202507280511
+      alias: rabbitmq
   before_script:
     - export CC=/usr/bin/clang
     - *install_mod
@@ -64,7 +69,6 @@ coverage:
   before_script:
     - export CC=/usr/bin/clang
     - *install_mod
-    - export REDIS_IP="172.17.0.2"
   script:
     - make coverage
     - mv /root/go/pkg/mod ./
