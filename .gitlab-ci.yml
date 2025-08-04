@@ -45,7 +45,6 @@ integration_tests:
   before_script:
     - export CC=/usr/bin/clang
     - *install_mod
-    - export REDIS_IP="172.17.0.2"
   script:
     - make test_integration
 
@@ -65,7 +64,6 @@ coverage:
   before_script:
     - export CC=/usr/bin/clang
     - *install_mod
-    - export REDIS_IP="172.17.0.2"
   script:
     - make coverage
     - mv /root/go/pkg/mod ./
