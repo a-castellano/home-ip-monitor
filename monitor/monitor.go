@@ -49,12 +49,7 @@ func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, nsLookup nsl
 			return nsLookupError
 		}
 
-		if remoteIP != ipInfo.IP {
-			log.Printf("Remote IP %s does not match with stored IP %s.", remoteIP, ipInfo.IP)
-			requireUpdate = true
-		} else {
-			log.Print("Remote IP matches with stored IP, no update required.")
-		}
+		requireUpdate = remoteIP != ipInfo.IP
 
 	}
 
