@@ -305,6 +305,36 @@ func TestFailRedis(t *testing.T) {
 	}
 }
 
+func TestIPOK(t *testing.T) {
+	setUp()
+	defer teardown()
+
+	os.Setenv("ISP_NAME", "DIGI")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
+	os.Setenv("REDIS_HOST", "valkey")
+	os.Setenv("RABBITMQ_HOST", "rabbitmq")
+	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
+
+	appConfig, configErr := config.NewConfig()
+
+	if configErr != nil {
+		t.Errorf("TestIPOK should not fail, but it did with error: %s", configErr.Error())
+	} else {
+
+		digiRequester := MockIPinfo{provider: "Digi"}
+
+		ctx := context.Background()
+
+		nsLookup := MockResolver{Response: "1.1.1.1", ResponseError: nil}
+
+		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
+
+		if monitorError != nil {
+			t.Errorf("TestIPOK should not fail.")
+		}
+	}
+}
+
 func TestFailLookup(t *testing.T) {
 	setUp()
 	defer teardown()
@@ -330,36 +360,6 @@ func TestFailLookup(t *testing.T) {
 
 		if monitorError == nil {
 			t.Errorf("TestFailLookup should fail.")
-		}
-	}
-}
-
-func TestIPOK(t *testing.T) {
-	setUp()
-	defer teardown()
-
-	os.Setenv("ISP_NAME", "DIGI")
-	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	os.Setenv("REDIS_HOST", "172.17.0.2")
-	os.Setenv("RABBITMQ_HOST", "rabbitmq")
-	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-
-	appConfig, configErr := config.NewConfig()
-
-	if configErr != nil {
-		t.Errorf("TestIPOK should not fail, but it did with error: %s", configErr.Error())
-	} else {
-
-		digiRequester := MockIPinfo{provider: "Digi"}
-
-		ctx := context.Background()
-
-		nsLookup := MockResolver{Response: "1.1.1.1", ResponseError: nil}
-
-		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
-
-		if monitorError != nil {
-			t.Errorf("TestIPOK should not fail.")
 		}
 	}
 }
