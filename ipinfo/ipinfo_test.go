@@ -50,7 +50,7 @@ func (m MockIPinfo) GetIPInfoResponse() (*http.Response, error) {
 func TestErroredRequester(t *testing.T) {
 
 	erroredRequester := MockIPinfo{}
-	_, ipInfoErr := RetireveIPInfoFromResponse(erroredRequester)
+	_, ipInfoErr := RetrieveIPInfoFromResponse(erroredRequester)
 
 	if ipInfoErr == nil {
 		t.Errorf("TestErroredRequester should fail")
@@ -65,7 +65,7 @@ func TestErroredRequester(t *testing.T) {
 func TestInvalidRequester(t *testing.T) {
 
 	invalidRequester := MockIPinfo{provider: "invalid"}
-	_, ipInfoErr := RetireveIPInfoFromResponse(invalidRequester)
+	_, ipInfoErr := RetrieveIPInfoFromResponse(invalidRequester)
 
 	if ipInfoErr == nil {
 		t.Errorf("TestInvalidRequester should fail.")
@@ -79,7 +79,7 @@ func TestInvalidRequester(t *testing.T) {
 func TestDigiRequester(t *testing.T) {
 
 	digiRequester := MockIPinfo{provider: "Digi"}
-	ipInfo, ipInfoErr := RetireveIPInfoFromResponse(digiRequester)
+	ipInfo, ipInfoErr := RetrieveIPInfoFromResponse(digiRequester)
 
 	if ipInfoErr != nil {
 		t.Errorf("TestDigiRequester should not fail, error was \"%s\".", ipInfoErr.Error())
@@ -96,7 +96,7 @@ func TestDigiRequester(t *testing.T) {
 func TestTelefonicaRequester(t *testing.T) {
 
 	telefonicaRequester := MockIPinfo{provider: "Telefonica"}
-	ipInfo, ipInfoErr := RetireveIPInfoFromResponse(telefonicaRequester)
+	ipInfo, ipInfoErr := RetrieveIPInfoFromResponse(telefonicaRequester)
 
 	if ipInfoErr != nil {
 		t.Errorf("TesttelefonicaRequester should not fail, error was \"%s\".", ipInfoErr.Error())

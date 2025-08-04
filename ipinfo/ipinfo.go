@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// IPinfo stores ingo retrieved from https://ipinfo.io/ calls
+// IPinfo stores info retrieved from https://ipinfo.io/ calls
 type IPinfo struct {
 	IP       string `json:"ip"`
 	Hostname string `json:"hostname"`
@@ -35,8 +35,8 @@ type Requester interface {
 	GetIPInfoResponse() (*http.Response, error)
 }
 
-// RetireveIPInfoFromResponse Proceses GetIPInfoResponse response and return IPinfo data
-func RetireveIPInfoFromResponse(requester Requester) (IPinfo, error) {
+// RetrieveIPInfoFromResponse Processes GetIPInfoResponse response and return IPinfo data
+func RetrieveIPInfoFromResponse(requester Requester) (IPinfo, error) {
 
 	var retrievedInfo IPinfo
 
@@ -70,7 +70,7 @@ type Realrequester struct {
 	Client http.Client
 }
 
-// GetIPInfoResponse retrievesa ctual ipinfo response
+// GetIPInfoResponse retrieves actual ipinfo response
 func (requester Realrequester) GetIPInfoResponse() (*http.Response, error) {
 	request, _ := http.NewRequest("GET", "https://ipinfo.io/", nil)
 	response, responseError := requester.Client.Do(request)

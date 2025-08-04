@@ -17,7 +17,7 @@ import (
 func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, nsLookup nslookup.NSLookup, memoryDatabase memorydatabase.MemoryDatabase, messageBroker messagebroker.MessageBroker, appConfig *config.Config) error {
 
 	log.Print("Retrieving IP info")
-	ipInfo, ipInfoError := ipinfo.RetireveIPInfoFromResponse(ipInfoRequester)
+	ipInfo, ipInfoError := ipinfo.RetrieveIPInfoFromResponse(ipInfoRequester)
 
 	if ipInfoError != nil {
 		return ipInfoError
@@ -30,7 +30,7 @@ func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, nsLookup nsl
 
 		encodedNotifyMessage := []byte(notifyMessage)
 		notifyError := notify.Notify(messageBroker, appConfig.NotifyQueue, encodedNotifyMessage)
-		// end function, if notifyError is nill, final error is also nil asexpected
+		// end function, if notifyError is nil, final error is also nil as expected
 		return notifyError
 	}
 
@@ -43,7 +43,7 @@ func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, nsLookup nsl
 	log.Printf("IP update required: %v", requireUpdate)
 
 	if !requireUpdate {
-		log.Printf("Cheking if remote IP matches with stored IP.")
+		log.Printf("Checking if remote IP matches with stored IP.")
 		remoteIP, nsLookupError := nslookup.GetIP(ctx, nsLookup, appConfig.DomainName)
 		if nsLookupError != nil {
 			return nsLookupError

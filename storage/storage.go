@@ -7,7 +7,7 @@ import (
 )
 
 // CheckDatabase Checks stored value in memorydatabase and compares its value with ip arg
-// in order todecide if value update is required
+// in order to decide if value update is required
 func CheckDatabase(ctx context.Context, ip string, databaseClient memorydatabase.MemoryDatabase) (bool, error) {
 
 	var requireUpdate bool = false

@@ -4,25 +4,25 @@
 
 This program checks if my Home IP changes, notify if IP and ISP changes.
 
-# What this progam does?
+# What this program does?
 
 This program fetch my public IP, checks if it has changed since last check.
 
 - If IP has changed and it belongs to required ISP, IP is updated and notified.
-- If new IP belogns to different ISP it only notifies
+- If new IP belongs to different ISP it only notifies
 - Otherwise this program does nothing.
 
 # Required variables
 
 ## ISP variables
 
-**ISP_NAME**: Name of connection ISP current copany, value must be the same as the one showed [https://ipinfo.io/](https://ipinfo.io/) **ASN** field, for example "DIGI".
+**ISP_NAME**: Name of connection ISP current company, value must be the same as the one shown [https://ipinfo.io/](https://ipinfo.io/) **ASN** field, for example "DIGI".
 
 ## Queue names
 
-**UPDATE_QUEUE_NAME**: Queue name where new IP's will be sended.
+**UPDATE_QUEUE_NAME**: Queue name where new IP's will be sent.
 
-**NOTIFY_QUEUE_NAME**: Queue name where notifications will be sended.
+**NOTIFY_QUEUE_NAME**: Queue name where notifications will be sent.
 
 ## Redis Config
 

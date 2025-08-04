@@ -10,7 +10,7 @@ import (
 	redisconfig "github.com/a-castellano/go-types/redis"
 )
 
-// Config struct contians required config variables
+// Config struct contains required config variables
 type Config struct {
 	DomainName     string // The domain that should be used to check if home IP values mismatch
 	ISPName        string // home-ip-monitor will send new IP values to be updated if associated ISP is the same than this value

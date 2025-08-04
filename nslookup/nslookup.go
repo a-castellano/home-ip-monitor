@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// DNSLookup retireves dns lookup information
+// DNSLookup retrieves dns lookup information
 type DNSLookup struct {
 	DNSServer string
 }
