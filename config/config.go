@@ -10,7 +10,7 @@ import (
 	redisconfig "github.com/a-castellano/go-types/redis"
 )
 
-// Config struct contians required config variables
+// Config struct contains required config variables for the home IP monitor service
 type Config struct {
 	DomainName     string // The domain that should be used to check if home IP values mismatch
 	ISPName        string // home-ip-monitor will send new IP values to be updated if associated ISP is the same than this value
@@ -22,11 +22,25 @@ type Config struct {
 }
 
 // NewConfig checks if required env variables are present, returns config instance
+// It validates all required environment variables and initializes Redis and RabbitMQ configurations
+//
+// Required environment variables:
+//   - DOMAIN_NAME: Domain to verify IP against
+//   - ISP_NAME: Expected ISP provider name
+//   - DNS_SERVER: External DNS server for lookups
+//
+// Optional environment variables (with defaults):
+//   - UPDATE_QUEUE_NAME: Queue for IP updates (default: "home-ip-monitor-updates")
+//   - NOTIFY_QUEUE_NAME: Queue for notifications (default: "home-ip-monitor-notifications")
+//
+// Returns:
+//   - *Config: Initialized configuration struct
+//   - error: Configuration error if any required variable is missing
 func NewConfig() (*Config, error) {
 	config := Config{}
 	var redisConfigErr, rabbitmqConfigErr error
 
-	// Retrieve DomainName
+	// Retrieve DomainName from environment
 	config.DomainName = cmp.Or(os.Getenv("DOMAIN_NAME"), "no_set")
 
 	if config.DomainName == "no_set" {
@@ -34,7 +48,7 @@ func NewConfig() (*Config, error) {
 	}
 	log.Printf("Domain name has been set to \"%s\"", config.DomainName)
 
-	// Retrieve ISPName
+	// Retrieve ISPName from environment
 	config.ISPName = cmp.Or(os.Getenv("ISP_NAME"), "no_set")
 
 	if config.ISPName == "no_set" {
@@ -42,7 +56,7 @@ func NewConfig() (*Config, error) {
 	}
 	log.Printf("ISP name has been set to \"%s\"", config.ISPName)
 
-	// Retrieve DNSServer
+	// Retrieve DNSServer from environment
 	config.DNSServer = cmp.Or(os.Getenv("DNS_SERVER"), "no_set")
 
 	if config.DNSServer == "no_set" {
@@ -54,7 +68,7 @@ func NewConfig() (*Config, error) {
 	config.UpdateQueue = cmp.Or(os.Getenv("UPDATE_QUEUE_NAME"), "home-ip-monitor-updates")
 	log.Printf("Update queue name has been set to \"%s\"", config.UpdateQueue)
 
-	// Retrieve NotifyQueue name, default is home-ip-monitor-updates
+	// Retrieve NotifyQueue name, default is home-ip-monitor-notifications
 	config.NotifyQueue = cmp.Or(os.Getenv("NOTIFY_QUEUE_NAME"), "home-ip-monitor-notifications")
 	log.Printf("Notify queue name has been set to \"%s\"", config.NotifyQueue)
 
