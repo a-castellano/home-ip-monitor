@@ -168,7 +168,7 @@ build_package:
     - export CC=/usr/bin/clang
   script:
     - make build
-    - nfpm package --packager arch
+    - nfpm package --packager archlinux
     - mkdir arch_package
     - ls -l
   dependencies:
