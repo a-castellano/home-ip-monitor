@@ -5,6 +5,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"errors"
 	config "github.com/a-castellano/home-ip-monitor/config"
 	nslookup "github.com/a-castellano/home-ip-monitor/nslookup"
 	"io/ioutil"
@@ -49,6 +50,15 @@ func (m MockIPinfo) GetIPInfoResponse() (*http.Response, error) {
 	response, responseError := client.Do(request)
 
 	return response, responseError
+}
+
+type MockResolver struct {
+	Response      string
+	ResponseError error
+}
+
+func (mock MockResolver) GetIP(ctx context.Context, domain string) (string, error) {
+	return mock.Response, mock.ResponseError
 }
 
 var currentISPName string
@@ -264,6 +274,64 @@ func teardown() {
 		os.Unsetenv("RABBITMQ_PASSWORD")
 	}
 
+}
+
+func TestFailRedis(t *testing.T) {
+	setUp()
+	defer teardown()
+
+	os.Setenv("ISP_NAME", "DIGI")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
+	os.Setenv("REDIS_HOST", "non-redis-host")
+	os.Setenv("RABBITMQ_HOST", "rabbitmq")
+	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
+
+	appConfig, configErr := config.NewConfig()
+
+	if configErr != nil {
+		t.Errorf("TestFailRedis config setup should not fail, but it did with error: %s", configErr.Error())
+	} else {
+		digiRequester := MockIPinfo{provider: "Digi"}
+
+		ctx := context.Background()
+
+		nsLookup := nslookup.DNSLookup{DNSServer: appConfig.DNSServer}
+
+		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
+
+		if monitorError == nil {
+			t.Errorf("TestFailRedis should fail.")
+		}
+	}
+}
+
+func TestFailLookup(t *testing.T) {
+	setUp()
+	defer teardown()
+
+	os.Setenv("ISP_NAME", "DIGI")
+	os.Setenv("DNS_SERVER", "1.1.1.1:53")
+	os.Setenv("REDIS_HOST", "valkey")
+	os.Setenv("RABBITMQ_HOST", "rabbitmq")
+	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
+
+	appConfig, configErr := config.NewConfig()
+
+	if configErr != nil {
+		t.Errorf("TestFailRedis config setup should not fail, but it did with error: %s", configErr.Error())
+	} else {
+		digiRequester := MockIPinfo{provider: "Digi"}
+
+		ctx := context.Background()
+
+		nsLookup := MockResolver{Response: "", ResponseError: errors.New("DNS lookup failed")}
+
+		monitorError := Monitor(ctx, digiRequester, nsLookup, appConfig)
+
+		if monitorError == nil {
+			t.Errorf("TestFailLookup should fail.")
+		}
+	}
 }
 
 func TestIPOK(t *testing.T) {

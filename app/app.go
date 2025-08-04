@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"log"
-	"os"
 
 	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
 	messagebroker "github.com/a-castellano/go-services/messagebroker"
@@ -21,7 +20,7 @@ func Monitor(ctx context.Context, requester ipinfo.Requester, nsLookup nslookup.
 	redisClientError := redisClient.Initiate(ctx)
 	if redisClientError != nil {
 		log.Print(redisClientError.Error())
-		os.Exit(1)
+		return redisClientError
 	}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(&redisClient)
 
@@ -31,8 +30,7 @@ func Monitor(ctx context.Context, requester ipinfo.Requester, nsLookup nslookup.
 
 	monitorError := monitor.Monitor(ctx, requester, nsLookup, memoryDatabase, messageBroker, appConfig)
 	if monitorError != nil {
-		log.Print(monitorError.Error())
-		os.Exit(1)
+		return monitorError
 	}
 	log.Print("Execution finished")
 
