@@ -11,10 +11,7 @@ A Go-based service that monitors your home's public IP address and notifies when
 - [Architecture](#architecture)
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Usage](#usage)
-- [Development](#development)
 - [Testing](#testing)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Overview
@@ -313,4 +310,4 @@ The project maintains high test coverage across all components:
 
 ## License
 
-This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPLv3 License - see the LICENSE file for details.
