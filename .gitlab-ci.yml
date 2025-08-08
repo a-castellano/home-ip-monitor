@@ -1,4 +1,4 @@
-image: registry.windmaker.net:5005/a-castellano/limani/base_golang_1_24:202507280511
+image: registry.windmaker.net:5005/a-castellano/limani/base_golang_1_24:202508080558
 
 stages:
   - lint
@@ -43,9 +43,9 @@ unit_tests:
 integration_tests:
   stage: integration_tests
   services:
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202507280511
+    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202508080558
       alias: valkey
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202507280511
+    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202508080558
       alias: rabbitmq
   before_script:
     - export CC=/usr/bin/clang
@@ -62,9 +62,9 @@ coverage:
     - if: $CI_COMMIT_BRANCH == 'develop'
     - if: $CI_COMMIT_BRANCH =~ '/^.*all.*$/'
   services:
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202507280511
+    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202508080558
       alias: valkey
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202507280511
+    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202508080558
       alias: rabbitmq
   before_script:
     - export CC=/usr/bin/clang
@@ -147,7 +147,7 @@ sonarqube-vulnerability-report:
 
 pages:
   stage: deploy
-  image: registry.windmaker.net:5005/a-castellano/limani/base:202507280511
+  image: registry.windmaker.net:5005/a-castellano/limani/base:202508080558
   script:
     - mkdir -p public
     - cp coverage.html public/
