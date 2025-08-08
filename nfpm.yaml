@@ -1,5 +1,5 @@
 name: "windmaker-home-ip-monitor"
-arch: "armv7l"
+arch: "armv7h"
 platform: "linux"
 version: "v0.0.4"
 section: "default"
