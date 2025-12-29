@@ -17,7 +17,7 @@ contents:
   - src: ./home-ip-monitor
     dst: /usr/local/bin/windmaker-home-ip-monitor
   - src: ./packaging/deb/default/windmaker-home-ip-monitor
-    dst: /etc/default/windmaker-home-ip-monitor
+    dst: /etc/default/windmaker-home-ip-monitor-example
   - src: ./packaging/deb/systemd/windmaker-home-ip-monitor.service
     dst: /usr/lib/systemd/system/windmaker-home-ip-monitor.service
   - src: ./packaging/deb/systemd/windmaker-home-ip-monitor.timer
