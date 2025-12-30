@@ -166,6 +166,8 @@ build_package:
   stage: build
   before_script:
     - export CC=/usr/bin/clang
+    - export GOOS=linux
+    - export GOARCH=arm64
   script:
     - make build
     - nfpm package --packager archlinux
