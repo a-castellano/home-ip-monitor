@@ -23,7 +23,7 @@ msan: ## Run memory sanitizer
 	@go test -msan -short ./...
 
 coverage: ## Generate global code coverage report
-	./scripts/coverage.sh;
+	./development/coverage.sh;
 
 coverhtml: ## Generate global code coverage report in HTML
 	go tool cover -html=cover/coverage.report -o coverage.html;

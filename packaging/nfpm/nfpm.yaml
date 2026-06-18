@@ -1,7 +1,7 @@
 name: "windmaker-home-ip-monitor"
 arch: "aarch64"
 platform: "linux"
-version: "v0.0.4"
+version: "v0.0.5"
 section: "default"
 priority: "extra"
 provides:
@@ -14,15 +14,15 @@ homepage: "https://git.windmaker.net/a-castellano/home-ip-monitor"
 license: "GPLV3"
 changelog: "changelog.yaml"
 contents:
-  - src: ./home-ip-monitor
+  - src: ../../home-ip-monitor
     dst: /usr/local/bin/windmaker-home-ip-monitor
-  - src: ./packaging/deb/default/windmaker-home-ip-monitor
+  - src: ../deb/default/windmaker-home-ip-monitor
     dst: /etc/default/windmaker-home-ip-monitor-example
-  - src: ./packaging/deb/systemd/windmaker-home-ip-monitor.service
+  - src: ../deb/systemd/windmaker-home-ip-monitor.service
     dst: /usr/lib/systemd/system/windmaker-home-ip-monitor.service
-  - src: ./packaging/deb/systemd/windmaker-home-ip-monitor.timer
+  - src: ../deb/systemd/windmaker-home-ip-monitor.timer
     dst: /usr/lib/systemd/system/windmaker-home-ip-monitor.timer
 overrides:
   deb:
     scripts:
-      postinstall: ./packaging/deb/scripts/postinstall.sh
+      postinstall: ../deb/scripts/postinstall.sh
