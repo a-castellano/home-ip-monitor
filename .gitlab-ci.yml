@@ -45,7 +45,7 @@ integration_tests:
   services:
     - name: harbor.windmaker.net/limani/base_valkey_server
       alias: valkey
-    - name: harbor.windmaker.net/limani//base_rabbitmq_server
+    - name: harbor.windmaker.net/limani/base_rabbitmq_server
       alias: rabbitmq
   before_script:
     - export CC=/usr/bin/clang
