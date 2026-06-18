@@ -1,4 +1,4 @@
-image: limani.windmaker.net/limani/base_golang_1_24:202512131754
+image: harbor.windmaker.net/limani/base_golang_1_26
 
 stages:
   - lint
@@ -43,9 +43,9 @@ unit_tests:
 integration_tests:
   stage: integration_tests
   services:
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202508080558
+    - name: harbor.windmaker.net/limani/base_valkey_server
       alias: valkey
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202508080558
+    - name: harbor.windmaker.net/limani//base_rabbitmq_server
       alias: rabbitmq
   before_script:
     - export CC=/usr/bin/clang
@@ -147,7 +147,7 @@ sonarqube-vulnerability-report:
 
 pages:
   stage: deploy
-  image: limani.windmaker.net/limani/base:202512131754
+  image: harbor.windmaker.net/limani/base
   script:
     - mkdir -p public
     - cp coverage.html public/
