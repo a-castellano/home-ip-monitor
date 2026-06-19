@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/a-castellano/home-ip-monitor/app"
-	config "github.com/a-castellano/home-ip-monitor/config"
-	ipinfo "github.com/a-castellano/home-ip-monitor/ipinfo"
-	"github.com/a-castellano/home-ip-monitor/nslookup"
+	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
+	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfo"
+	"github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 )
 
 // serviceName is the identifier used for syslog messages

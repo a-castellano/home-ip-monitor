@@ -8,7 +8,7 @@ import (
 	"errors"
 	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
 	messagebroker "github.com/a-castellano/go-services/messagebroker"
-	config "github.com/a-castellano/home-ip-monitor/config"
+	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
 	redismock "github.com/go-redis/redismock/v9"
 	goredis "github.com/redis/go-redis/v9"
 	"io/ioutil"

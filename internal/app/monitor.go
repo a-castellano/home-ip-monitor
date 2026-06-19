@@ -7,11 +7,11 @@ import (
 
 	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
 	messagebroker "github.com/a-castellano/go-services/messagebroker"
-	config "github.com/a-castellano/home-ip-monitor/config"
-	ipinfo "github.com/a-castellano/home-ip-monitor/ipinfo"
-	notify "github.com/a-castellano/home-ip-monitor/notify"
-	nslookup "github.com/a-castellano/home-ip-monitor/nslookup"
-	storage "github.com/a-castellano/home-ip-monitor/storage"
+	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
+	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfo"
+	notify "github.com/a-castellano/home-ip-monitor/internal/infra/notify"
+	nslookup "github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
+	storage "github.com/a-castellano/home-ip-monitor/internal/infra/storage"
 )
 
 // Monitor performs the core IP monitoring logic:

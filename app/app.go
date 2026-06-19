@@ -6,10 +6,10 @@ import (
 
 	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
 	messagebroker "github.com/a-castellano/go-services/messagebroker"
-	config "github.com/a-castellano/home-ip-monitor/config"
-	"github.com/a-castellano/home-ip-monitor/ipinfo"
-	"github.com/a-castellano/home-ip-monitor/monitor"
-	"github.com/a-castellano/home-ip-monitor/nslookup"
+	monitor "github.com/a-castellano/home-ip-monitor/internal/app"
+	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
+	"github.com/a-castellano/home-ip-monitor/internal/infra/ipinfo"
+	"github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 )
 
 // Monitor orchestrates the IP monitoring process by:
