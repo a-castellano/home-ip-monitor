@@ -31,7 +31,7 @@ type ipinfoData struct {
 // getOrgName retrieves OrgName from Org field
 // It parses the "org" field which typically contains "AS12345 ISP_NAME"
 // and extracts just the ISP name part
-func (ipinfoData *ipinfoData) getOrgName(ctx context.Context) domain.IPInfo {
+func (ipinfoData ipinfoData) getOrgName(ctx context.Context) domain.IPInfo {
 
 	log := logger.FromContext(ctx)
 
@@ -43,56 +43,65 @@ func (ipinfoData *ipinfoData) getOrgName(ctx context.Context) domain.IPInfo {
 	return ipinfo
 }
 
-	GetIPInfo(ctx context.Context) (domain.IPInfo, error)
+type IPInfoRequester struct {
+	httpClient *http.Client
 }
 
-func RetrieveIPInfoFromResponse(requester Requester) (IPinfo, error) {
+var (
+	ErrStatusCodeInvalid string = "invalid status code"
 
-	var retrievedInfo IPinfo
+	ipInfoURL string = "https://ipinfo.io/"
+)
 
-	// Make HTTP request to ipinfo.io
-	response, responseError := requester.GetIPInfoResponse()
+func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, error) {
+	ipinfo := domain.IPInfo{}
+	var retrievedInfo ipinfoData
 
-	if responseError != nil {
-		return retrievedInfo, responseError
+	log := logger.FromContext(ctx)
+	log.DebugContext(ctx, "Creating a request to ipinfo", "url", ipInfoURL, "operation", "GetIPInfo")
+	req, reqErr := http.NewRequestWithContext(ctx, "GET", ipInfoURL, nil)
+
+	if reqErr != nil {
+		log.ErrorContext(ctx, "Error during request to ipinfo creation", "url", ipInfoURL, "error", reqErr.Error(), "operation", "GetIPInfo")
+		return ipinfo, reqErr
 	}
 
-	// Read and parse response body
+	log.DebugContext(ctx, "Executing request to ipinfo", "url", ipInfoURL, "operation", "GetIPInfo")
+
+	response, responseErr := requester.httpClient.Do(req)
+
+	if responseErr != nil {
+		log.ErrorContext(ctx, "Error performing request to ipinfo", "url", ipInfoURL, "error", responseErr.Error(), "operation", "GetIPInfo")
+	}
 	defer response.Body.Close()
-	bs, _ := ioutil.ReadAll(response.Body)
 
-	// Parse JSON response into IPinfo struct
-	unmarshalErr := json.Unmarshal(bs, &retrievedInfo)
+	if response.StatusCode != 200 {
+		log.ErrorContext(ctx, "Error performing request to ipinfo, returned status code is nt 200", "url", ipInfoURL, "StatusCode", response.StatusCode, "operation", "GetIPInfo")
+
+		return ipinfo, errors.New("error performing request to ipinfo, returned status code is not 200")
+	}
+
+	log.DebugContext(ctx, "Reading body response", "operation", "GetIPInfo")
+	body, bodyErr := io.ReadAll(response.Body)
+	if bodyErr != nil {
+		log.ErrorContext(ctx, "Error reading body response from ipinfo", "url", ipInfoURL, "error", bodyErr, "operation", "GetIPInfo")
+		return ipinfo, bodyErr
+	}
+
+	log.DebugContext(ctx, "Parsing JSON body response", "operation", "GetIPInfo")
+	unmarshalErr := json.Unmarshal(body, &retrievedInfo)
 	if unmarshalErr != nil {
-		return retrievedInfo, unmarshalErr
+		log.ErrorContext(ctx, "Error reading json response from ipinfo", "url", ipInfoURL, "error", unmarshalErr, "operation", "GetIPInfo")
+		return ipinfo, unmarshalErr
 	}
 
-	// Validate that we received a valid IP address
 	if retrievedInfo.IP == "" {
-		return retrievedInfo, errors.New("no IPInfo was found during request phase")
+		log.ErrorContext(ctx, "Error processing json response from ipinfo, no ip has been returned", "operation", "GetIPInfo")
+		return ipinfo, errors.New("no IP was returned by ipinfo was found during request")
 	}
 
-	log.Printf("Retrieved IP is \"%s\"", retrievedInfo.IP)
-	// Extract ISP name from the organization field
-	retrievedInfo.getOrgName()
+	log.DebugContext(ctx, "IPInfo request succeded", "retrievedInfo", retrievedInfo, "operation", "GetIPInfo")
+	ipinfo = retrievedInfo.getOrgName(ctx)
 
-	return retrievedInfo, nil
-
-}
-
-// Realrequester is the actual requester implementation
-// It uses a real HTTP client to make requests to ipinfo.io
-type InfoRequester struct {
-	Client http.Client
-}
-
-func (requester InfoRequester) getIPInfoResponse() (*http.Response, error) {
-	request, _ := http.NewRequest("GET", "https://ipinfo.io/", nil)
-	response, responseError := requester.Client.Do(request)
-
-	return response, responseError
-}
-
-func (requester InfoRequester)   GetIPInfo(ctx context.Context) (domain.IPInfo, error) {
-	//to do
+	return ipinfo, nil
 }
