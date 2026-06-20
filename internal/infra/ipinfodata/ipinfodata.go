@@ -43,21 +43,9 @@ func (ipinfoData *ipinfoData) getOrgName(ctx context.Context) domain.IPInfo {
 	return ipinfo
 }
 
-// Requester interface must implement GetIPInfo method
-// This interface allows for easy testing by mocking the HTTP client
-type Requester interface {
-	GetIPInfoResponse() (*http.Response, error)
+	GetIPInfo(ctx context.Context) (domain.IPInfo, error)
 }
 
-// RetrieveIPInfoFromResponse Processes GetIPInfoResponse response and return IPinfo data
-// It handles the HTTP response from ipinfo.io, parses the JSON, and extracts the ISP name
-//
-// Parameters:
-//   - requester: Interface for making HTTP requests to ipinfo.io
-//
-// Returns:
-//   - IPinfo: Parsed IP information including ISP details
-//   - error: Error if request fails or response is invalid
 func RetrieveIPInfoFromResponse(requester Requester) (IPinfo, error) {
 
 	var retrievedInfo IPinfo
@@ -94,19 +82,17 @@ func RetrieveIPInfoFromResponse(requester Requester) (IPinfo, error) {
 
 // Realrequester is the actual requester implementation
 // It uses a real HTTP client to make requests to ipinfo.io
-type Realrequester struct {
+type InfoRequester struct {
 	Client http.Client
 }
 
-// GetIPInfoResponse retrieves actual ipinfo response
-// It makes a GET request to ipinfo.io and returns the HTTP response
-//
-// Returns:
-//   - *http.Response: HTTP response from ipinfo.io
-//   - error: Error if request fails
-func (requester Realrequester) GetIPInfoResponse() (*http.Response, error) {
+func (requester InfoRequester) getIPInfoResponse() (*http.Response, error) {
 	request, _ := http.NewRequest("GET", "https://ipinfo.io/", nil)
 	response, responseError := requester.Client.Do(request)
 
 	return response, responseError
+}
+
+func (requester InfoRequester)   GetIPInfo(ctx context.Context) (domain.IPInfo, error) {
+	//to do
 }
