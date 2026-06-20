@@ -297,6 +297,50 @@ make coverage
 make coverhtml
 ```
 
+### Mocks
+
+HTTP-dependent code is unit-tested by mocking the `http.RoundTripper` instead of
+hitting the network. Mocks are generated with
+[Uber's `mockgen`](https://github.com/uber-go/mock), registered as a Go tool in
+`go.mod` via the `tool` directive (requires Go 1.24+), so no global install is
+needed — `go test`/`go generate` resolve it automatically.
+
+The generator is declared with a `//go:generate` directive in
+`internal/infra/ipinfodata/ipinfodata.go`:
+
+```go
+//go:generate go tool mockgen -destination mocks/http.go -package mock net/http RoundTripper
+```
+
+Regenerate the mocks after changing a mocked interface:
+
+```bash
+go generate ./...
+```
+
+> The directive must live in a file **without** build tags (e.g. `ipinfodata.go`).
+> If it sits in a `_test.go` file guarded by `//go:build`, `go generate ./...` skips
+> it unless you pass the matching `-tags`.
+
+This produces `internal/infra/ipinfodata/mocks/http.go` (package `mock`) exposing
+`MockRoundTripper`. Tests build an `http.Client` with the mock transport and set
+expectations on `RoundTrip`:
+
+```go
+ctrl := gomock.NewController(t)
+transport := mock.NewMockRoundTripper(ctrl)
+transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+    StatusCode: 200,
+    Body:       io.NopCloser(bytes.NewBufferString(`{"ip":"1.2.3.4","org":"AS1 EXAMPLE"}`)),
+}, nil)
+
+requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+info, err := requester.GetIPInfo(context.Background())
+```
+
+Generated mocks live under `mocks/` directories and are excluded from the coverage
+report by `development/coverage.sh` (the `PKG_LIST` filter drops `/mocks` packages).
+
 ### Test Coverage
 
 The project maintains high test coverage across all components:
