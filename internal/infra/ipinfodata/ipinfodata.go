@@ -1,5 +1,7 @@
 package ipinfodata
 
+//go:generate go tool mockgen -destination mocks/http.go -package mock net/http RoundTripper
+
 import (
 	"context"
 	"encoding/json"

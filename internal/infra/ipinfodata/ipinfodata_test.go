@@ -4,108 +4,144 @@ package ipinfodata
 
 import (
 	"bytes"
-	"io/ioutil"
+	"context"
+	"errors"
+	"io"
 	"net/http"
 	"testing"
+
+	mock "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata/mocks"
+	"go.uber.org/mock/gomock"
 )
 
-type RoundTripperMock struct {
-	Response *http.Response
-	RespErr  error
-}
+func TestGetIPInfoRequestCreationError(t *testing.T) {
+	// Force NewRequestWithContext to fail: a URL containing a control
+	// character (0x7f) makes url.Parse return an error.
+	old := ipInfoURL
+	ipInfoURL = "https://ipinfo.io/\x7f"
+	defer func() { ipInfoURL = old }()
 
-func (rtm *RoundTripperMock) RoundTrip(*http.Request) (*http.Response, error) {
-	return rtm.Response, rtm.RespErr
-}
+	// httpClient is never used: the request fails before reaching Do().
+	requester := IPInfoRequester{httpClient: &http.Client{}}
 
-type MockIPinfo struct {
-	provider string
-}
-
-func (m MockIPinfo) GetIPInfoResponse() (*http.Response, error) {
-
-	var client http.Client
-
-	switch m.provider {
-
-	case "Digi":
-		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`{"ip": "79.12.12.12","hostname": "79-12-12-12.digimobil.es","city": "Madrid","region": "Madrid","country": "ES","loc": "40.4165,-3.7026","org": "AS57269 DIGI SPAIN TELECOM S.L.","postal": "28087","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`))}}}
-
-	case "Telefonica":
-		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`{"ip": "95.12.12.12","hostname": "12.red-95-12-12.staticip.rima-tde.net","city": "Valencia","region": "Valencia","country": "ES","loc": "39.4739,-0.3797","org": "AS3352 TELEFONICA DE ESPANA S.A.U.","postal": "46001","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`))}}}
-
-	case "invalid":
-		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`{"nonsense": "json"}`))}}}
-
-	default:
-		client = http.Client{Transport: &RoundTripperMock{Response: &http.Response{Body: ioutil.NopCloser(bytes.NewBufferString(`"nonsense": "json"}`))}}}
-	}
-
-	request, _ := http.NewRequest("GET", "https://ipinfo.io/", nil)
-	response, responseError := client.Do(request)
-
-	return response, responseError
-}
-
-func TestErroredRequester(t *testing.T) {
-
-	erroredRequester := MockIPinfo{}
-	_, ipInfoErr := RetrieveIPInfoFromResponse(erroredRequester)
-
-	if ipInfoErr == nil {
-		t.Errorf("TestErroredRequester should fail")
-	} else {
-		if ipInfoErr.Error() != "invalid character ':' after top-level value" {
-			t.Errorf("TestErroredRequester error should be \"invalid character ':' after top-level value\", not \"%s\".", ipInfoErr.Error())
-		}
-	}
-
-}
-
-func TestInvalidRequester(t *testing.T) {
-
-	invalidRequester := MockIPinfo{provider: "invalid"}
-	_, ipInfoErr := RetrieveIPInfoFromResponse(invalidRequester)
-
-	if ipInfoErr == nil {
-		t.Errorf("TestInvalidRequester should fail.")
-	} else {
-		if ipInfoErr.Error() != "no IPInfo was found during request phase" {
-			t.Errorf("TestInvalidRequester error should be \"no IPInfo was found during request phase\", not \"%s\".", ipInfoErr.Error())
-		}
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when request creation fails")
 	}
 }
 
-func TestDigiRequester(t *testing.T) {
+func TestGetIPInfoTransportError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
 
-	digiRequester := MockIPinfo{provider: "Digi"}
-	ipInfo, ipInfoErr := RetrieveIPInfoFromResponse(digiRequester)
+	transport.EXPECT().
+		RoundTrip(gomock.Any()).
+		Return(nil, errors.New("boom"))
 
-	if ipInfoErr != nil {
-		t.Errorf("TestDigiRequester should not fail, error was \"%s\".", ipInfoErr.Error())
-	} else {
-		if ipInfo.IP != "79.12.12.12" {
-			t.Errorf("ipInfo.IP should be \"79.12.12.12\" not \"%s\".", ipInfo.IP)
-		}
-		if ipInfo.OrgName != "DIGI" {
-			t.Errorf("ipInfo.OrgName should be \"DIGI\" not \"%s\".", ipInfo.OrgName)
-		}
+	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when transport fails")
 	}
 }
 
-func TestTelefonicaRequester(t *testing.T) {
+func TestGetIPInfoInvalidReturnCodes(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
 
-	telefonicaRequester := MockIPinfo{provider: "Telefonica"}
-	ipInfo, ipInfoErr := RetrieveIPInfoFromResponse(telefonicaRequester)
+	transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: 404,
+		Body:       io.NopCloser(bytes.NewBufferString("any content")),
+	}, nil)
 
-	if ipInfoErr != nil {
-		t.Errorf("TesttelefonicaRequester should not fail, error was \"%s\".", ipInfoErr.Error())
+	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when transport fails")
+	}
+}
+
+// errorReader is an io.ReadCloser whose Read always fails.
+type errorReader struct{}
+
+func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failed") }
+func (errorReader) Close() error             { return nil }
+
+func TestGetIPInfoBodyReadError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
+
+	// 200 OK, but the body errors on Read so io.ReadAll fails.
+	transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: 200,
+		Body:       errorReader{},
+	}, nil)
+
+	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when the response body cannot be read")
+	}
+}
+
+func TestGetIPInfoBodyBrokenJSON(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
+
+	// 200 OK, but the body JSON response is broken.
+	transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString(`"broken": "json"}`)),
+	}, nil)
+
+	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when the response body is an invalid JSON")
+	}
+}
+
+func TestGetIPInfoBodyValidJSONEmptyIP(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
+
+	// 200 OK, but the body JSON response is broken.
+	transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString(`{"nonsense": "json"}`)),
+	}, nil)
+
+	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when the response body is an invalid JSON")
+	}
+}
+
+func TestGetIPInfoTelefonica(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
+
+	// 200 OK, but the body JSON response is broken.
+	transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString(`{"ip": "79.12.12.12","hostname": "79-12-12-12.digimobil.es","city": "Madrid","region": "Madrid","country": "ES","loc": "40.4165,-3.7026","org": "AS57269 DIGI SPAIN TELECOM S.L.","postal": "28087","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`)),
+	}, nil)
+
+	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+
+	ipinfo, err := requester.GetIPInfo(context.Background())
+	if err != nil {
+		t.Fatal("GetIPInfo shouldn't fail when valid JSON is returned")
 	} else {
-		if ipInfo.IP != "95.12.12.12" {
-			t.Errorf("ipInfo.IP should be \"95.12.12.12\" not \"%s\".", ipInfo.IP)
-		}
-		if ipInfo.OrgName != "TELEFONICA" {
-			t.Errorf("ipInfo.OrgName should be \"TELEFONICA\" not \"%s\".", ipInfo.OrgName)
+		expectedIP := "79.12.12.12"
+		if ipinfo.IP != expectedIP {
+			t.Fatalf("ipinfo.IP should be '%s' but got '%s'", expectedIP, ipinfo.IP)
 		}
 	}
 }

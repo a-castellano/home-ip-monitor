@@ -2,11 +2,11 @@
 
 package ipinfodata
 
-import (
-	"net/http"
-	"testing"
-	"time"
-)
+//import (
+//	"net/http"
+//	"testing"
+//	"time"
+//)
 
 //func TestIPInfoRequester(t *testing.T) {
 //
