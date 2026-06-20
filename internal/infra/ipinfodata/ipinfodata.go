@@ -1,17 +1,21 @@
-package ipinfo
+package ipinfodata
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strings"
+
+	logger "github.com/a-castellano/go-services/infra/logger"
+	domain "github.com/a-castellano/home-ip-monitor/internal/domain"
 )
 
 // IPinfo stores info retrieved from https://ipinfo.io/ calls
 // It contains all the information returned by the ipinfo.io API
-type IPinfo struct {
+type ipinfoData struct {
 	IP       string `json:"ip"`       // Public IP address
 	Hostname string `json:"hostname"` // Reverse DNS hostname
 	City     string `json:"city"`     // City location
@@ -22,15 +26,21 @@ type IPinfo struct {
 	Postal   string `json:"postal"`   // Postal code
 	Timezone string `json:"timezone"` // Timezone
 	Readme   string `json:"readme"`   // API documentation URL
-	OrgName  string // Extracted ISP name (e.g., "DIGI")
 }
 
 // getOrgName retrieves OrgName from Org field
 // It parses the "org" field which typically contains "AS12345 ISP_NAME"
 // and extracts just the ISP name part
-func (ipInfo *IPinfo) getOrgName() {
-	ipInfo.OrgName = strings.Split(ipInfo.Org, " ")[1]
-	log.Printf("Retrieved OrgName is \"%s\"", ipInfo.OrgName)
+func (ipinfoData *ipinfoData) getOrgName(ctx context.Context) domain.IPInfo {
+
+	log := logger.FromContext(ctx)
+
+	orgName := strings.Split(ipinfoData.Org, " ")[1]
+
+	ipinfo := domain.IPInfo{IP: ipinfoData.IP, OrgName: orgName}
+
+	log.InfoContext(ctx, "Retrieve IPInfo data", "data", ipinfo, "operation", "getOrgName")
+	return ipinfo
 }
 
 // Requester interface must implement GetIPInfo method

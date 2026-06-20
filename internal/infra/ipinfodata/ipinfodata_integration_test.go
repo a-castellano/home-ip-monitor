@@ -1,6 +1,6 @@
-//go:build integration_tests || ipinfo_tests || ipinfo_unit_tests
+//go:build integration_tests || ipinfodata_tests || ipinfodata_unit_tests
 
-package ipinfo
+package ipinfodata
 
 import (
 	"net/http"
