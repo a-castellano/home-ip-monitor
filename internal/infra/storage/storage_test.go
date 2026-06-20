@@ -5,7 +5,7 @@ package storage
 import (
 	"context"
 	"errors"
-	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
+	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
 	redismock "github.com/go-redis/redismock/v9"
 	goredis "github.com/redis/go-redis/v9"
 	"testing"

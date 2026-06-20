@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 
-	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
+	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
 )
 
 // CheckDatabase Checks stored value in memorydatabase and compares its value with ip arg

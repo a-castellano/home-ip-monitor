@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -13,8 +12,6 @@ import (
 	domain "github.com/a-castellano/home-ip-monitor/internal/domain"
 )
 
-// IPinfo stores info retrieved from https://ipinfo.io/ calls
-// It contains all the information returned by the ipinfo.io API
 type ipinfoData struct {
 	IP       string `json:"ip"`       // Public IP address
 	Hostname string `json:"hostname"` // Reverse DNS hostname
@@ -48,8 +45,6 @@ type IPInfoRequester struct {
 }
 
 var (
-	ErrStatusCodeInvalid string = "invalid status code"
-
 	ipInfoURL string = "https://ipinfo.io/"
 )
 
@@ -72,6 +67,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 
 	if responseErr != nil {
 		log.ErrorContext(ctx, "Error performing request to ipinfo", "url", ipInfoURL, "error", responseErr.Error(), "operation", "GetIPInfo")
+		return ipinfo, responseErr
 	}
 	defer response.Body.Close()
 

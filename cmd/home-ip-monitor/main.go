@@ -10,7 +10,7 @@ import (
 
 	"github.com/a-castellano/home-ip-monitor/app"
 	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
-	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfo"
+	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata"
 	"github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 )
 

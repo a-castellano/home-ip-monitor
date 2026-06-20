@@ -1,7 +1,7 @@
 package notify
 
 import (
-	messagebroker "github.com/a-castellano/go-services/messagebroker"
+	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 )
 
 // Notify sends a message to the specified queue using the message broker

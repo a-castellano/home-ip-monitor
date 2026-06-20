@@ -5,7 +5,7 @@ package notify
 import (
 	"context"
 	"errors"
-	messagebroker "github.com/a-castellano/go-services/messagebroker"
+	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 	"testing"
 )
 

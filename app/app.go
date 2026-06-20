@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 
-	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
-	messagebroker "github.com/a-castellano/go-services/messagebroker"
+	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
+	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 	monitor "github.com/a-castellano/home-ip-monitor/internal/app"
 	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
-	"github.com/a-castellano/home-ip-monitor/internal/infra/ipinfo"
+	"github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata"
 	"github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 )
 

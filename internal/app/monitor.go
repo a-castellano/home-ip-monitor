@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	memorydatabase "github.com/a-castellano/go-services/memorydatabase"
-	messagebroker "github.com/a-castellano/go-services/messagebroker"
+	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
+	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
-	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfo"
+	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata"
 	notify "github.com/a-castellano/home-ip-monitor/internal/infra/notify"
 	nslookup "github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 	storage "github.com/a-castellano/home-ip-monitor/internal/infra/storage"
