@@ -1,3 +1,5 @@
+//go:build integration_tests || unit_tests || ipinfo_tests || ipinfo_unit_tests
+
 package domain
 
 import (
