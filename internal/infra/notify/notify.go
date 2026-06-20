@@ -1,6 +1,8 @@
 package notify
 
 import (
+	"context"
+
 	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 )
 
@@ -14,9 +16,9 @@ import (
 //
 // Returns:
 //   - error: Error if message sending fails
-func Notify(broker messagebroker.MessageBroker, queueName string, message []byte) error {
+func Notify(ctx context.Context, broker messagebroker.MessageBroker, queueName string, message []byte) error {
 
-	notifyError := broker.SendMessage(queueName, message)
+	notifyError := broker.SendMessage(ctx, queueName, message)
 
 	return notifyError
 

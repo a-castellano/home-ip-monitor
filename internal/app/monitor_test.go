@@ -86,7 +86,7 @@ type RabbitmqMock struct {
 	LaunchError bool
 }
 
-func (client RabbitmqMock) SendMessage(queueName string, message []byte) error {
+func (client RabbitmqMock) SendMessage(ctx context.Context, string, message []byte) error {
 	if client.LaunchError {
 		return errors.New("Error")
 	}

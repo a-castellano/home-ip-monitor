@@ -8,7 +8,7 @@ import (
 	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 	monitor "github.com/a-castellano/home-ip-monitor/internal/app"
 	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
-	"github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata"
+	ipinfo "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata"
 	"github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 )
 
