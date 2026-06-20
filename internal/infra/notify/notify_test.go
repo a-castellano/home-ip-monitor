@@ -1,4 +1,4 @@
-//go:build integration_tests || unit_tests || ipinfo_tests || ipinfo_unit_tests
+//go:build integration_tests || unit_tests || notify_tests || notify_unit_tests
 
 package notify
 

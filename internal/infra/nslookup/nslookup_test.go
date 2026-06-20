@@ -1,4 +1,4 @@
-//go:build integration_tests || unit_tests || ipinfo_tests || ipinfo_unit_tests
+//go:build integration_tests || unit_tests || nslookup_tests || nslookup_unit_tests
 
 package nslookup
 

@@ -1,4 +1,4 @@
-//go:build integration_tests || ipinfodata_tests || ipinfodata_unit_tests
+//go:build integration_tests || ipinfodata_tests
 
 package ipinfodata
 
