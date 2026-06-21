@@ -12,15 +12,15 @@ type DNSLookup struct {
 	DNSServer string // DNS server address (e.g., "8.8.8.8:53")
 }
 
-// getIP retrieves the IP address from the DNS lookup
-// It performs a DNS lookup for the given domain using the configured DNS server
+// Resolve resolves the given domain to an IP address using the configured DNS
+// server. It implements domain.DNSResolver.
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeouts
 //   - domain: Domain name to resolve
 //
 // Returns:
-//   - string: Resolved IP address
+//   - string: Resolved IP address (the first result)
 //   - error: Error if DNS lookup fails
 func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, error) {
 
