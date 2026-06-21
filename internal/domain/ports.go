@@ -6,7 +6,7 @@ type IPInfoProvider interface {
 	GetIPInfo(ctx context.Context) (IPInfo, error)
 }
 type DNSResolver interface {
-	Resolve(ctx context.Context, host string) (string, error)
+	Resolve(ctx context.Context, domain string) (string, error)
 }
 type IPStore interface {
 	StoredIP(ctx context.Context) (ip string, found bool, err error)

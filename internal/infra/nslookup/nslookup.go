@@ -22,9 +22,9 @@ type DNSLookup struct {
 // Returns:
 //   - string: Resolved IP address
 //   - error: Error if DNS lookup fails
-func (dnsLookup DNSLookup) GetIP(ctx context.Context, domain string) (string, error) {
+func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, error) {
 
-	var ip string = ""
+	var ip string
 
 	// Create dialer with timeout for DNS connections
 	dialer := &net.Dialer{
@@ -48,27 +48,4 @@ func (dnsLookup DNSLookup) GetIP(ctx context.Context, domain string) (string, er
 		ip = ips[0]
 	}
 	return ip, nil
-}
-
-// NSLookup is an interface that defines the method to retrieve IP information
-// This interface allows for easy testing by mocking DNS operations
-type NSLookup interface {
-	GetIP(context.Context, string) (string, error)
-}
-
-// GetIP retrieves the IP address using the provided NSLookup interface
-// It's a wrapper function that delegates to the interface implementation
-//
-// Parameters:
-//   - ctx: Context for cancellation and timeouts
-//   - nsLookup: Interface for DNS operations
-//   - domain: Domain name to resolve
-//
-// Returns:
-//   - string: Resolved IP address
-//   - error: Error if DNS lookup fails
-func GetIP(ctx context.Context, nsLookup NSLookup, domain string) (string, error) {
-
-	return nsLookup.GetIP(ctx, domain)
-
 }
