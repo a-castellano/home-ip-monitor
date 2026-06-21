@@ -15,6 +15,9 @@ import (
 	domain "github.com/a-castellano/home-ip-monitor/internal/domain"
 )
 
+// ipinfoData is the unexported DTO that maps the raw JSON response from
+// ipinfo.io. It holds every wire field, but only IP and Org are used to
+// build the domain.IPInfo entity.
 type ipinfoData struct {
 	IP       string `json:"ip"`       // Public IP address
 	Hostname string `json:"hostname"` // Reverse DNS hostname
@@ -49,14 +52,24 @@ func (ipinfoData ipinfoData) getOrgName(ctx context.Context) (domain.IPInfo, err
 	return ipinfo, nil
 }
 
+// IPInfoRequester is the ipinfo.io HTTP adapter. It implements
+// domain.IPInfoProvider by fetching and parsing the public IP information,
+// using the injected *http.Client.
 type IPInfoRequester struct {
 	HttpClient *http.Client
 }
 
+// ipInfoURL is the ipinfo.io endpoint queried for public IP information.
+// It is a package var (not a const) so tests can override it to exercise
+// request-creation errors.
 var (
 	ipInfoURL string = "https://ipinfo.io/"
 )
 
+// GetIPInfo fetches the public IP information from ipinfo.io and maps it to a
+// domain.IPInfo. It builds the request, validates the status code, reads and
+// parses the JSON body, ensures an IP was returned, and extracts the ISP name.
+// It returns an error if any of those steps fails.
 func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, error) {
 	ipinfo := domain.IPInfo{}
 	var retrievedInfo ipinfoData
@@ -81,7 +94,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		log.ErrorContext(ctx, "Error performing request to ipinfo, returned status code is nt 200", "url", ipInfoURL, "StatusCode", response.StatusCode, "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error performing request to ipinfo, returned status code is not 200", "url", ipInfoURL, "StatusCode", response.StatusCode, "operation", "GetIPInfo")
 
 		return ipinfo, errors.New("error performing request to ipinfo, returned status code is not 200")
 	}
@@ -102,7 +115,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 
 	if retrievedInfo.IP == "" {
 		log.ErrorContext(ctx, "Error processing json response from ipinfo, no ip has been returned", "operation", "GetIPInfo")
-		return ipinfo, errors.New("no IP was returned by ipinfo was found during request")
+		return ipinfo, errors.New("no IP was returned by ipinfo during request")
 	}
 
 	log.DebugContext(ctx, "IPInfo request succeded", "retrievedInfo", retrievedInfo, "operation", "GetIPInfo")
