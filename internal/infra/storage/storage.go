@@ -7,48 +7,46 @@ import (
 	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
 )
 
-type IPStore struct {
+// Store is the persistence adapter for the monitored IP. It wraps the
+// memorydatabase.MemoryDatabase abstraction (not Redis directly) and
+// implements domain.IPStore.
+type Store struct {
 	database memorydatabase.MemoryDatabase
 }
 
-// CheckDatabase Checks stored value in memorydatabase and compares its value with ip arg
-// in order to decide if value update is required
-//
-// It compares the provided IP address with the previously stored IP address
-// to determine if an update is needed. If no IP is stored (first run),
-// it will require an update.
+// StoredIP returns the IP currently persisted under the "storedIP" key.
+// It only reads the value; deciding whether an update is required is the
+// use case's responsibility, not the store's.
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeouts
-//   - ip: Current IP address to compare
-//   - databaseClient: Interface for database operations
 //
 // Returns:
-//   - bool: True if update is required, false otherwise
-//   - error: Error if database operation fails
-func (ipstore *IPStore) StoredIP(ctx context.Context) (string, bool, error) {
+//   - string: The stored IP address (empty if none was found)
+//   - bool: Whether a value was found
+//   - error: Error if the read operation fails
+func (store *Store) StoredIP(ctx context.Context) (string, bool, error) {
 
 	log := logger.FromContext(ctx)
-	log.DebugContext(ctx, "Retrieving stored IP from ipstore", "operation", "StoredIP")
+	log.DebugContext(ctx, "Retrieving stored IP from store", "operation", "StoredIP")
 
-	return ipstore.database.ReadString(ctx, "storedIP")
+	return store.database.ReadString(ctx, "storedIP")
 }
 
-// UpdateIP updates "storedIP" value in memorydatabase
-// It stores the new IP address in Redis for future comparisons
+// SaveIP persists ip under the "storedIP" key with no TTL (persistent),
+// overwriting any previous value.
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeouts
 //   - ip: IP address to store
-//   - databaseClient: Interface for database operations
 //
 // Returns:
-//   - error: Error if database operation fails
-func (ipstore *IPStore) SaveIP(ctx context.Context, ip string) error {
+//   - error: Error if the write operation fails
+func (store *Store) SaveIP(ctx context.Context, ip string) error {
 	// Store IP with no TTL (persistent storage)
 	log := logger.FromContext(ctx)
-	log.DebugContext(ctx, "Storing required IP into ipstore", "ip", ip, "operation", "SaveIP")
+	log.DebugContext(ctx, "Storing required IP into store", "ip", ip, "operation", "SaveIP")
 
-	writeError := ipstore.database.WriteString(ctx, "storedIP", ip, 0)
+	writeError := store.database.WriteString(ctx, "storedIP", ip, 0)
 	return writeError
 }
