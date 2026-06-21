@@ -2,6 +2,7 @@ package nslookup
 
 import (
 	"context"
+	logger "github.com/a-castellano/go-services/infra/logger"
 	"net"
 	"time"
 )
@@ -24,8 +25,10 @@ type DNSLookup struct {
 //   - error: Error if DNS lookup fails
 func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, error) {
 
+	log := logger.FromContext(ctx)
 	var ip string
 
+	log.DebugContext(ctx, "Creating dialer and resolver", "operation", "Resolve")
 	// Create dialer with timeout for DNS connections
 	dialer := &net.Dialer{
 		Timeout: time.Second * 5,
@@ -42,10 +45,13 @@ func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, 
 	// Perform DNS lookup for the domain
 	ips, err := resolver.LookupHost(ctx, domain)
 	if err != nil {
+		log.ErrorContext(ctx, "Error during domain nslookup", "domain", domain, "error", err.Error(), "operation", "Resolve")
 		return ip, err
 	} else {
 		// Return the first IP address from the results
 		ip = ips[0]
 	}
+	log.InfoContext(ctx, "domain ip retrived", "domain", domain, "ip", ip, "operation", "Resolve")
+
 	return ip, nil
 }
