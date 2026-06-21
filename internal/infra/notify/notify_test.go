@@ -13,7 +13,7 @@ type RabbitmqMock struct {
 	LaunchError bool
 }
 
-func (client RabbitmqMock) SendMessage(queueName string, message []byte) error {
+func (client RabbitmqMock) SendMessage(ctx context.Context, queueName string, message []byte) error {
 	if client.LaunchError {
 		return errors.New("Error")
 	}
@@ -32,12 +32,16 @@ func (client RabbitmqMock) ReceiveMessages(ctx context.Context, queueName string
 
 func TestNotify(t *testing.T) {
 
+	ctx := context.Background()
+
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
+	brokerNotifier := BrokerNotifier{broker: messageBroker}
+
 	testMessage := []byte("This is a test")
 
-	notifyError := Notify(messageBroker, "testQeue", testMessage)
+	notifyError := brokerNotifier.Notify(ctx, "testQeue", testMessage)
 
 	if notifyError != nil {
 		t.Errorf("TestNotify should not fail")
