@@ -47,8 +47,10 @@ func TestErrorRedis(t *testing.T) {
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
 
-	_, errorOnCheck := CheckDatabase(ctx, "12.12.12.12", memoryDatabase)
-	if errorOnCheck == nil {
+	ipstore := IPStore{database: memoryDatabase}
+
+	_, _, storedIPErr := ipstore.StoredIP(ctx)
+	if storedIPErr == nil {
 		t.Errorf("TestErrorRedis should return error when redis read has failed.")
 	}
 
@@ -61,49 +63,37 @@ func TestIPNotSetYetRedis(t *testing.T) {
 
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
+	ipstore := IPStore{database: memoryDatabase}
 
-	requireUpdate, errorOnCheck := CheckDatabase(ctx, "12.12.12.12", memoryDatabase)
-	if errorOnCheck != nil {
+	_, found, storedIPErr := ipstore.StoredIP(ctx)
+	if storedIPErr != nil {
 		t.Errorf("TestIPNotSetYetRedis shoudld not fail.")
 	}
-	if requireUpdate == false {
-		t.Errorf("TestIPNotSetYetRedis should require update as key\"storedIP\" has been set yet")
+	if found == true {
+		t.Errorf("TestIPNotSetYetRedis shouldn't find ay value")
 	}
 
 }
 
-func TestStoredIPDiffers(t *testing.T) {
+func TestStoredIP(t *testing.T) {
 	ctx := context.Background()
 	dbMock, mock := redismock.NewClientMock()
-	mock.ExpectGet("storedIP").SetVal("12.12.12.13")
+	expectedIP := "12.12.12.12"
+	mock.ExpectGet("storedIP").SetVal(expectedIP)
 
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
+	ipstore := IPStore{database: memoryDatabase}
 
-	requireUpdate, errorOnCheck := CheckDatabase(ctx, "12.12.12.12", memoryDatabase)
-	if errorOnCheck != nil {
-		t.Errorf("TestStoredIPDiffers should not not fail.")
-	}
-	if requireUpdate == false {
-		t.Errorf("TestStoredIPDiffers should require update as key\"storedIP\" is diferent from new one.")
-	}
-
-}
-
-func TestStoredSameIP(t *testing.T) {
-	ctx := context.Background()
-	dbMock, mock := redismock.NewClientMock()
-	mock.ExpectGet("storedIP").SetVal("12.12.12.12")
-
-	redisClientMock := RedisClientMock{client: dbMock}
-	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
-
-	requireUpdate, errorOnCheck := CheckDatabase(ctx, "12.12.12.12", memoryDatabase)
-	if errorOnCheck != nil {
+	storedIP, found, storedIPErr := ipstore.StoredIP(ctx)
+	if storedIPErr != nil {
 		t.Errorf("TestStoredSameIP should not fail.")
 	}
-	if requireUpdate == true {
-		t.Errorf("TestStoredSameIP should not require update as key\"storedIP\" has the same value as new IP.")
+	if found == false {
+		t.Errorf("TestStoredSameIP should find an stored IP.")
+	}
+	if storedIP != expectedIP {
+		t.Fatalf("Stored ip should be '%s' instead of the actual stored '%s'", expectedIP, storedIP)
 	}
 
 }
@@ -116,7 +106,8 @@ func TestUpdateIPWithNoError(t *testing.T) {
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
 
-	errorOnUpdate := UpdateIP(ctx, "12.12.12.12", memoryDatabase)
+	ipstore := IPStore{database: memoryDatabase}
+	errorOnUpdate := ipstore.SaveIP(ctx, "12.12.12.12")
 	if errorOnUpdate != nil {
 		t.Errorf("TestUpdateIPWithNoError should not fail.")
 	}
@@ -131,7 +122,8 @@ func TestUpdateIPWithError(t *testing.T) {
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
 
-	errorOnUpdate := UpdateIP(ctx, "12.12.12.12", memoryDatabase)
+	ipstore := IPStore{database: memoryDatabase}
+	errorOnUpdate := ipstore.SaveIP(ctx, "12.12.12.12")
 	if errorOnUpdate == nil {
 		t.Errorf("TestUpdateIPWithError should fail.")
 	}

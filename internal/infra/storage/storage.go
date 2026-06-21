@@ -3,8 +3,13 @@ package storage
 import (
 	"context"
 
+	logger "github.com/a-castellano/go-services/infra/logger"
 	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
 )
+
+type IPStore struct {
+	database memorydatabase.MemoryDatabase
+}
 
 // CheckDatabase Checks stored value in memorydatabase and compares its value with ip arg
 // in order to decide if value update is required
@@ -21,28 +26,12 @@ import (
 // Returns:
 //   - bool: True if update is required, false otherwise
 //   - error: Error if database operation fails
-func CheckDatabase(ctx context.Context, ip string, databaseClient memorydatabase.MemoryDatabase) (bool, error) {
+func (ipstore *IPStore) StoredIP(ctx context.Context) (string, bool, error) {
 
-	var requireUpdate bool = false
+	log := logger.FromContext(ctx)
+	log.DebugContext(ctx, "Retrieving stored IP from ipstore", "operation", "StoredIP")
 
-	// Read the currently stored IP address from Redis
-	currentRegisteredValue, found, readErr := databaseClient.ReadString(ctx, "storedIP")
-
-	if readErr != nil {
-		return requireUpdate, readErr
-	}
-
-	// If no IP is stored (first run), require update
-	if found == false {
-		requireUpdate = true
-	} else {
-		// If stored IP differs from current IP, require update
-		if currentRegisteredValue != ip {
-			requireUpdate = true
-		}
-	}
-
-	return requireUpdate, nil
+	return ipstore.database.ReadString(ctx, "storedIP")
 }
 
 // UpdateIP updates "storedIP" value in memorydatabase
@@ -55,8 +44,11 @@ func CheckDatabase(ctx context.Context, ip string, databaseClient memorydatabase
 //
 // Returns:
 //   - error: Error if database operation fails
-func UpdateIP(ctx context.Context, ip string, databaseClient memorydatabase.MemoryDatabase) error {
+func (ipstore *IPStore) SaveIP(ctx context.Context, ip string) error {
 	// Store IP with no TTL (persistent storage)
-	writeError := databaseClient.WriteString(ctx, "storedIP", ip, 0)
+	log := logger.FromContext(ctx)
+	log.DebugContext(ctx, "Storing required IP into ipstore", "ip", ip, "operation", "SaveIP")
+
+	writeError := ipstore.database.WriteString(ctx, "storedIP", ip, 0)
 	return writeError
 }
