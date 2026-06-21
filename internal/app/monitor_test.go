@@ -1,6 +1,6 @@
 //go:build integration_tests || unit_tests || app_tests || app_unit_tests
 
-package monitor
+package app
 
 import (
 	"bytes"
