@@ -7,16 +7,18 @@ import (
 	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
 )
 
+// BrokerNotifier is the messaging adapter. It wraps a
+// messagebroker.MessageBroker and implements domain.Notifier.
 type BrokerNotifier struct {
 	broker messagebroker.MessageBroker
 }
 
-// Notify sends a message to the specified queue using the message broker
-// It's a simple wrapper around the message broker's SendMessage method
+// Notify sends message to the given queue through the message broker.
+// It implements domain.Notifier.
 //
 // Parameters:
-//   - broker: Message broker interface for sending messages
-//   - queueName: Name of the queue to send the message to
+//   - ctx: Context for cancellation and timeouts
+//   - queue: Name of the queue to send the message to
 //   - message: Message content as byte array
 //
 // Returns:
