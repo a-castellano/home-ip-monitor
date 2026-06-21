@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -30,20 +31,26 @@ type ipinfoData struct {
 // getOrgName retrieves OrgName from Org field
 // It parses the "org" field which typically contains "AS12345 ISP_NAME"
 // and extracts just the ISP name part
-func (ipinfoData ipinfoData) getOrgName(ctx context.Context) domain.IPInfo {
+func (ipinfoData ipinfoData) getOrgName(ctx context.Context) (domain.IPInfo, error) {
 
 	log := logger.FromContext(ctx)
+	var ipinfo domain.IPInfo
 
-	orgName := strings.Split(ipinfoData.Org, " ")[1]
+	splitedOrgData := strings.Split(ipinfoData.Org, " ")
+	if len(splitedOrgData) < 2 {
+		log.ErrorContext(ctx, "ipinfo retrieved Org value format cannot be processed", "data", ipinfoData.Org, "operation", "getOrgName")
+		return ipinfo, fmt.Errorf("ipinfo data format cannot be processed : \"%s\"", ipinfoData.Org)
+	}
+	orgName := splitedOrgData[1]
 
-	ipinfo := domain.IPInfo{IP: ipinfoData.IP, OrgName: orgName}
+	ipinfo = domain.IPInfo{IP: ipinfoData.IP, OrgName: orgName}
 
 	log.InfoContext(ctx, "Retrieve IPInfo data", "data", ipinfo, "operation", "getOrgName")
-	return ipinfo
+	return ipinfo, nil
 }
 
 type IPInfoRequester struct {
-	httpClient *http.Client
+	HttpClient *http.Client
 }
 
 var (
@@ -65,7 +72,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 
 	log.DebugContext(ctx, "Executing request to ipinfo", "url", ipInfoURL, "operation", "GetIPInfo")
 
-	response, responseErr := requester.httpClient.Do(req)
+	response, responseErr := requester.HttpClient.Do(req)
 
 	if responseErr != nil {
 		log.ErrorContext(ctx, "Error performing request to ipinfo", "url", ipInfoURL, "error", responseErr.Error(), "operation", "GetIPInfo")
@@ -99,7 +106,12 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 	}
 
 	log.DebugContext(ctx, "IPInfo request succeded", "retrievedInfo", retrievedInfo, "operation", "GetIPInfo")
-	ipinfo = retrievedInfo.getOrgName(ctx)
+	ipinfo, getOrgNameErr := retrievedInfo.getOrgName(ctx)
+
+	if getOrgNameErr != nil {
+		log.ErrorContext(ctx, "Error processing ipinfo Org name retrieval", "error", getOrgNameErr, "operation", "GetIPInfo")
+		return ipinfo, getOrgNameErr
+	}
 
 	return ipinfo, nil
 }

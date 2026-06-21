@@ -22,7 +22,7 @@ func TestGetIPInfoRequestCreationError(t *testing.T) {
 	defer func() { ipInfoURL = old }()
 
 	// httpClient is never used: the request fails before reaching Do().
-	requester := IPInfoRequester{httpClient: &http.Client{}}
+	requester := IPInfoRequester{HttpClient: &http.Client{}}
 
 	_, err := requester.GetIPInfo(context.Background())
 	if err == nil {
@@ -38,7 +38,7 @@ func TestGetIPInfoTransportError(t *testing.T) {
 		RoundTrip(gomock.Any()).
 		Return(nil, errors.New("boom"))
 
-	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
 
 	_, err := requester.GetIPInfo(context.Background())
 	if err == nil {
@@ -55,7 +55,7 @@ func TestGetIPInfoInvalidReturnCodes(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString("any content")),
 	}, nil)
 
-	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
 
 	_, err := requester.GetIPInfo(context.Background())
 	if err == nil {
@@ -79,7 +79,7 @@ func TestGetIPInfoBodyReadError(t *testing.T) {
 		Body:       errorReader{},
 	}, nil)
 
-	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
 
 	_, err := requester.GetIPInfo(context.Background())
 	if err == nil {
@@ -97,7 +97,7 @@ func TestGetIPInfoBodyBrokenJSON(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`"broken": "json"}`)),
 	}, nil)
 
-	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
 
 	_, err := requester.GetIPInfo(context.Background())
 	if err == nil {
@@ -115,7 +115,7 @@ func TestGetIPInfoBodyValidJSONEmptyIP(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`{"nonsense": "json"}`)),
 	}, nil)
 
-	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
 
 	_, err := requester.GetIPInfo(context.Background())
 	if err == nil {
@@ -133,7 +133,7 @@ func TestGetIPInfoTelefonica(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`{"ip": "79.12.12.12","hostname": "79-12-12-12.digimobil.es","city": "Madrid","region": "Madrid","country": "ES","loc": "40.4165,-3.7026","org": "AS57269 DIGI SPAIN TELECOM S.L.","postal": "28087","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`)),
 	}, nil)
 
-	requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
 
 	ipinfo, err := requester.GetIPInfo(context.Background())
 	if err != nil {
@@ -143,5 +143,23 @@ func TestGetIPInfoTelefonica(t *testing.T) {
 		if ipinfo.IP != expectedIP {
 			t.Fatalf("ipinfo.IP should be '%s' but got '%s'", expectedIP, ipinfo.IP)
 		}
+	}
+}
+
+func TestGetIPInfoInvalidOrgName(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	transport := mock.NewMockRoundTripper(ctrl)
+
+	// 200 OK, but the body JSON response is broken.
+	transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString(`{"ip": "79.12.12.12","hostname": "79-12-12-12.digimobil.es","city": "Madrid","region": "Madrid","country": "ES","loc": "40.4165,-3.7026","org": "AS57269DIGISPAINTELECOM","postal": "28087","timezone": "Europe/Madrid","readme": "https://ipinfo.io/missingauth"}`)),
+	}, nil)
+
+	requester := IPInfoRequester{HttpClient: &http.Client{Transport: transport}}
+
+	_, err := requester.GetIPInfo(context.Background())
+	if err == nil {
+		t.Fatal("GetIPInfo should fail when org name cannot be splited")
 	}
 }
