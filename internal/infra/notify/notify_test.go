@@ -42,7 +42,7 @@ func TestNotify(t *testing.T) {
 	rabbitmock := RabbitmqMock{LaunchError: false}
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmock}
 
-	brokerNotifier := BrokerNotifier{broker: messageBroker}
+	brokerNotifier := BrokerNotifier{Broker: messageBroker}
 
 	testMessage := []byte("This is a test")
 

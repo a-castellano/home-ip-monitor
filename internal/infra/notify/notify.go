@@ -10,7 +10,7 @@ import (
 // BrokerNotifier is the messaging adapter. It wraps a
 // messagebroker.MessageBroker and implements domain.Notifier.
 type BrokerNotifier struct {
-	broker messagebroker.MessageBroker
+	Broker messagebroker.MessageBroker
 }
 
 // Notify sends message to the given queue through the message broker.
@@ -27,7 +27,7 @@ func (brokerNotifier *BrokerNotifier) Notify(ctx context.Context, queue string, 
 	log := logger.FromContext(ctx)
 	log.DebugContext(ctx, "Notifying message to queue", "queue", queue, "message", message, "operation", "Notify")
 
-	notifyError := brokerNotifier.broker.SendMessage(ctx, queue, message)
+	notifyError := brokerNotifier.Broker.SendMessage(ctx, queue, message)
 
 	return notifyError
 

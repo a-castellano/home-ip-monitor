@@ -47,7 +47,7 @@ func TestErrorRedis(t *testing.T) {
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
 
-	ipstore := Store{database: memoryDatabase}
+	ipstore := Store{Database: memoryDatabase}
 
 	_, _, storedIPErr := ipstore.StoredIP(ctx)
 	if storedIPErr == nil {
@@ -63,7 +63,7 @@ func TestIPNotSetYetRedis(t *testing.T) {
 
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
-	ipstore := Store{database: memoryDatabase}
+	ipstore := Store{Database: memoryDatabase}
 
 	_, found, storedIPErr := ipstore.StoredIP(ctx)
 	if storedIPErr != nil {
@@ -83,7 +83,7 @@ func TestStoredIP(t *testing.T) {
 
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
-	ipstore := Store{database: memoryDatabase}
+	ipstore := Store{Database: memoryDatabase}
 
 	storedIP, found, storedIPErr := ipstore.StoredIP(ctx)
 	if storedIPErr != nil {
@@ -106,7 +106,7 @@ func TestUpdateIPWithNoError(t *testing.T) {
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
 
-	ipstore := Store{database: memoryDatabase}
+	ipstore := Store{Database: memoryDatabase}
 	errorOnUpdate := ipstore.SaveIP(ctx, "12.12.12.12")
 	if errorOnUpdate != nil {
 		t.Errorf("TestUpdateIPWithNoError should not fail.")
@@ -122,7 +122,7 @@ func TestUpdateIPWithError(t *testing.T) {
 	redisClientMock := RedisClientMock{client: dbMock}
 	memoryDatabase := memorydatabase.NewMemoryDatabase(redisClientMock)
 
-	ipstore := Store{database: memoryDatabase}
+	ipstore := Store{Database: memoryDatabase}
 	errorOnUpdate := ipstore.SaveIP(ctx, "12.12.12.12")
 	if errorOnUpdate == nil {
 		t.Errorf("TestUpdateIPWithError should fail.")

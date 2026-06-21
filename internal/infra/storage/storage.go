@@ -11,7 +11,7 @@ import (
 // memorydatabase.MemoryDatabase abstraction (not Redis directly) and
 // implements domain.IPStore.
 type Store struct {
-	database memorydatabase.MemoryDatabase
+	Database memorydatabase.MemoryDatabase
 }
 
 // StoredIP returns the IP currently persisted under the "storedIP" key.
@@ -30,7 +30,7 @@ func (store *Store) StoredIP(ctx context.Context) (string, bool, error) {
 	log := logger.FromContext(ctx)
 	log.DebugContext(ctx, "Retrieving stored IP from store", "operation", "StoredIP")
 
-	return store.database.ReadString(ctx, "storedIP")
+	return store.Database.ReadString(ctx, "storedIP")
 }
 
 // SaveIP persists ip under the "storedIP" key with no TTL (persistent),
@@ -47,6 +47,6 @@ func (store *Store) SaveIP(ctx context.Context, ip string) error {
 	log := logger.FromContext(ctx)
 	log.DebugContext(ctx, "Storing required IP into store", "ip", ip, "operation", "SaveIP")
 
-	writeError := store.database.WriteString(ctx, "storedIP", ip, 0)
+	writeError := store.Database.WriteString(ctx, "storedIP", ip, 0)
 	return writeError
 }
