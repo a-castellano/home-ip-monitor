@@ -16,7 +16,7 @@ func TestGetIP(t *testing.T) {
 	domain := "test.windmaker.net"
 	expectedIP := "213.32.122.25"
 
-	ip, err := GetIP(ctx, &dnsLookup, domain)
+	ip, err := dnsLookup.Resolve(ctx, domain)
 	if err != nil {
 		t.Errorf("GetIP should not fail resolving test.windmaker.net: %v", err)
 	} else {
@@ -34,7 +34,7 @@ func TestGetIPBadDNS(t *testing.T) {
 
 	domain := "test.windmaker.net"
 
-	_, err := GetIP(ctx, &dnsLookup, domain)
+	_, err := dnsLookup.Resolve(ctx, domain)
 	if err == nil {
 		t.Errorf("GetIP should fail resolving test.windmaker.net from bad DNS server: %v", err)
 	}
