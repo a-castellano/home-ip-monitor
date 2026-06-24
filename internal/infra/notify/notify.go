@@ -24,8 +24,8 @@ type BrokerNotifier struct {
 // Returns:
 //   - error: Error if message sending fails
 func (brokerNotifier *BrokerNotifier) Notify(ctx context.Context, queue string, message []byte) error {
-	log := logger.FromContext(ctx)
-	log.DebugContext(ctx, "Notifying message to queue", "queue", queue, "message", message, "operation", "Notify")
+	log := logger.FromContext(ctx).With("operation", "Notify")
+	log.DebugContext(ctx, "Notifying message to queue", "queue", queue, "message", message)
 
 	notifyError := brokerNotifier.Broker.SendMessage(ctx, queue, message)
 

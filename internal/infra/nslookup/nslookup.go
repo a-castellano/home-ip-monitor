@@ -25,10 +25,10 @@ type DNSLookup struct {
 //   - error: Error if DNS lookup fails
 func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, error) {
 
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).With("operation", "Resolve")
 	var ip string
 
-	log.DebugContext(ctx, "Creating dialer and resolver", "operation", "Resolve")
+	log.DebugContext(ctx, "Creating dialer and resolver")
 	// Create dialer with timeout for DNS connections
 	dialer := &net.Dialer{
 		Timeout: time.Second * 5,
@@ -45,13 +45,13 @@ func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, 
 	// Perform DNS lookup for the domain
 	ips, err := resolver.LookupHost(ctx, domain)
 	if err != nil {
-		log.ErrorContext(ctx, "Error during domain nslookup", "domain", domain, "error", err.Error(), "operation", "Resolve")
+		log.ErrorContext(ctx, "Error during domain nslookup", "domain", domain, "error", err.Error())
 		return ip, err
 	} else {
 		// Return the first IP address from the results
 		ip = ips[0]
 	}
-	log.InfoContext(ctx, "domain ip retrived", "domain", domain, "ip", ip, "operation", "Resolve")
+	log.InfoContext(ctx, "domain ip retrived", "domain", domain, "ip", ip)
 
 	return ip, nil
 }

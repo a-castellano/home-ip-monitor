@@ -36,19 +36,19 @@ type ipinfoData struct {
 // and extracts just the ISP name part
 func (ipinfoData ipinfoData) getOrgName(ctx context.Context) (domain.IPInfo, error) {
 
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).With("operation", "getOrgName")
 	var ipinfo domain.IPInfo
 
 	splitedOrgData := strings.Split(ipinfoData.Org, " ")
 	if len(splitedOrgData) < 2 {
-		log.ErrorContext(ctx, "ipinfo retrieved Org value format cannot be processed", "data", ipinfoData.Org, "operation", "getOrgName")
+		log.ErrorContext(ctx, "ipinfo retrieved Org value format cannot be processed", "data", ipinfoData.Org)
 		return ipinfo, fmt.Errorf("ipinfo data format cannot be processed : \"%s\"", ipinfoData.Org)
 	}
 	orgName := splitedOrgData[1]
 
 	ipinfo = domain.IPInfo{IP: ipinfoData.IP, OrgName: orgName}
 
-	log.InfoContext(ctx, "Retrieve IPInfo data", "data", ipinfo, "operation", "getOrgName")
+	log.InfoContext(ctx, "Retrieve IPInfo data", "data", ipinfo)
 	return ipinfo, nil
 }
 
@@ -74,55 +74,55 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 	ipinfo := domain.IPInfo{}
 	var retrievedInfo ipinfoData
 
-	log := logger.FromContext(ctx)
-	log.DebugContext(ctx, "Creating a request to ipinfo", "url", ipInfoURL, "operation", "GetIPInfo")
+	log := logger.FromContext(ctx).With("operation", "GetIPInfo")
+	log.DebugContext(ctx, "Creating a request to ipinfo", "url", ipInfoURL)
 	req, reqErr := http.NewRequestWithContext(ctx, "GET", ipInfoURL, nil)
 
 	if reqErr != nil {
-		log.ErrorContext(ctx, "Error during request to ipinfo creation", "url", ipInfoURL, "error", reqErr.Error(), "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error during request to ipinfo creation", "url", ipInfoURL, "error", reqErr.Error())
 		return ipinfo, reqErr
 	}
 
-	log.DebugContext(ctx, "Executing request to ipinfo", "url", ipInfoURL, "operation", "GetIPInfo")
+	log.DebugContext(ctx, "Executing request to ipinfo", "url", ipInfoURL)
 
 	response, responseErr := requester.HttpClient.Do(req)
 
 	if responseErr != nil {
-		log.ErrorContext(ctx, "Error performing request to ipinfo", "url", ipInfoURL, "error", responseErr.Error(), "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error performing request to ipinfo", "url", ipInfoURL, "error", responseErr.Error())
 		return ipinfo, responseErr
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		log.ErrorContext(ctx, "Error performing request to ipinfo, returned status code is not 200", "url", ipInfoURL, "StatusCode", response.StatusCode, "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error performing request to ipinfo, returned status code is not 200", "url", ipInfoURL, "StatusCode", response.StatusCode)
 
 		return ipinfo, errors.New("error performing request to ipinfo, returned status code is not 200")
 	}
 
-	log.DebugContext(ctx, "Reading body response", "operation", "GetIPInfo")
+	log.DebugContext(ctx, "Reading body response")
 	body, bodyErr := io.ReadAll(response.Body)
 	if bodyErr != nil {
-		log.ErrorContext(ctx, "Error reading body response from ipinfo", "url", ipInfoURL, "error", bodyErr, "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error reading body response from ipinfo", "url", ipInfoURL, "error", bodyErr)
 		return ipinfo, bodyErr
 	}
 
-	log.DebugContext(ctx, "Parsing JSON body response", "operation", "GetIPInfo")
+	log.DebugContext(ctx, "Parsing JSON body response")
 	unmarshalErr := json.Unmarshal(body, &retrievedInfo)
 	if unmarshalErr != nil {
-		log.ErrorContext(ctx, "Error reading json response from ipinfo", "url", ipInfoURL, "error", unmarshalErr, "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error reading json response from ipinfo", "url", ipInfoURL, "error", unmarshalErr)
 		return ipinfo, unmarshalErr
 	}
 
 	if retrievedInfo.IP == "" {
-		log.ErrorContext(ctx, "Error processing json response from ipinfo, no ip has been returned", "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error processing json response from ipinfo, no ip has been returned")
 		return ipinfo, errors.New("no IP was returned by ipinfo during request")
 	}
 
-	log.DebugContext(ctx, "IPInfo request succeded", "retrievedInfo", retrievedInfo, "operation", "GetIPInfo")
+	log.DebugContext(ctx, "IPInfo request succeded", "retrievedInfo", retrievedInfo)
 	ipinfo, getOrgNameErr := retrievedInfo.getOrgName(ctx)
 
 	if getOrgNameErr != nil {
-		log.ErrorContext(ctx, "Error processing ipinfo Org name retrieval", "error", getOrgNameErr, "operation", "GetIPInfo")
+		log.ErrorContext(ctx, "Error processing ipinfo Org name retrieval", "error", getOrgNameErr)
 		return ipinfo, getOrgNameErr
 	}
 
