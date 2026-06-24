@@ -130,6 +130,9 @@ func TestDifferentISPNotifyError(t *testing.T) {
 
 }
 
+// Rule 1: the IP belongs to a different ISP, so Run takes the notify-only path.
+// Here that single notification succeeds, so Run returns no error and storage is
+// left untouched (this is the happy-path counterpart to TestDifferentISPNotifyError).
 func TestDifferentISP(t *testing.T) {
 
 	ipinfoData := domain.IPInfo{IP: "1.1.1.1", OrgName: "Test"}
