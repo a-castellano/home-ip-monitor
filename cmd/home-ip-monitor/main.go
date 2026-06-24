@@ -35,7 +35,7 @@ func main() {
 	// Now from anywhere else in your program, you can use this:
 	appLogger.DebugContext(ctx, "Loading config")
 
-	appConfig, configErr := config.NewConfig()
+	appConfig, configErr := config.NewConfig(ctx)
 
 	if configErr != nil {
 		appLogger.ErrorContext(ctx, "Error loading app config", "error", configErr)
