@@ -28,22 +28,25 @@ func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, sto
 }
 
 func (monitor Monitor) Run(ctx context.Context) error {
-	log := logger.FromContext(ctx)
-	log.DebugContext(ctx, "Starting monitor", "settings", monitor.settings, "operation", "Run")
 
-	log.DebugContext(ctx, "Retrieving ipinfo data", "operation", "Run")
+	var updateIP bool = false
+
+	log := logger.FromContext(ctx)
+	log.DebugContext(ctx, "Starting monitor", "settings", monitor.settings, "operation", "Monitor.Run")
+
+	log.DebugContext(ctx, "Retrieving ipinfo data", "operation", "Monitor.Run")
 
 	ipinfo, getIPInfoErr := monitor.provider.GetIPInfo(ctx)
 
 	if getIPInfoErr != nil {
-		log.ErrorContext(ctx, "Error retrieving ipinfo data", "error", getIPInfoErr, "operation", "Run")
+		log.ErrorContext(ctx, "Error retrieving ipinfo data", "error", getIPInfoErr, "operation", "Monitor.Run")
 		return getIPInfoErr
 	}
 
-	log.DebugContext(ctx, "Validating that ipinfo provider is the esxpected provider", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Run")
+	log.DebugContext(ctx, "Validating that ipinfo provider is the esxpected provider", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
 
 	if !ipinfo.BelongsToISP(monitor.settings.ISPName) {
-		log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Run")
+		log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
 
 		notifyMessage := []byte(fmt.Sprintf("Readed IP %s belongs to %s ISP, it seems than home is not using main ISP %s.", ipinfo.IP, ipinfo.OrgName, monitor.settings.ISPName))
 
@@ -51,90 +54,69 @@ func (monitor Monitor) Run(ctx context.Context) error {
 
 		if notifyError != nil {
 
+			log.ErrorContext(ctx, "Error notifying about ISP change", "error", notifyError, "operation", "Monitor.Run")
+			return notifyError
 		}
 
 	} else {
-		log.DebugContext(ctx, "Current provider is the expected provider, cheking if IP has changed", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Run")
+		log.DebugContext(ctx, "Current provider is the expected provider, cheking if IP has changed retrieving current stored ip", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
+
+		storedIP, ipFound, retrieveIPErr := monitor.store.StoredIP(ctx)
+
+		if retrieveIPErr != nil {
+			log.ErrorContext(ctx, "Error retrieving current stored IP from store", "error", retrieveIPErr, "operation", "Monitor.Run")
+
+			return retrieveIPErr
+		}
+
+		if ipFound {
+			log.DebugContext(ctx, "There is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "currentIP", storedIP, "operation", "Monitor.Run")
+			if storedIP != ipinfo.IP {
+				log.DebugContext(ctx, "IP's differ, stored IP must be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "updateIP", storedIP, "operation", "Monitor.Run")
+				updateIP = true
+			} else {
+				log.DebugContext(ctx, "IP's are the same, stored IP will no be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "storedIP", storedIP, "operation", "Monitor.Run")
+			}
+		} else {
+			log.DebugContext(ctx, "There is not stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
+			updateIP = true
+		}
+
+		if updateIP {
+
+			log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
+			notifyChangeMessage := fmt.Sprintf("Home IP has changed to %s.", ipinfo.IP)
+
+			// Send notification message
+			encodedNotifyChangeMessage := []byte(notifyChangeMessage)
+			encodedIP := []byte(ipinfo.IP)
+
+			notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, encodedNotifyChangeMessage)
+
+			if notifyChangeError != nil {
+				log.ErrorContext(ctx, "Error notifying about Home IP change", "error", notifyChangeError, "operation", "Monitor.Run")
+				return notifyChangeError
+			}
+
+			log.DebugContext(ctx, "Notifying about IP change in DNS update queue", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
+
+			notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, encodedIP)
+			if notifyDNSError != nil {
+				log.ErrorContext(ctx, "Error notifying DNS queue with IP to change", "error", notifyDNSError, "operation", "Monitor.Run")
+				return notifyDNSError
+			}
+
+			log.DebugContext(ctx, "Updating stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
+
+			updateIPError := monitor.store.SaveIP(ctx, ipinfo.IP)
+			if updateIPError != nil {
+				log.ErrorContext(ctx, "Error updating retrived IP in store", "error", updateIPError, "operation", "Monitor.Run")
+				return updateIPError
+			}
+
+		}
 
 	}
 
 	return nil
 }
-
-//
-//func Monitor(ctx context.Context, ipInfoRequester ipinfo.Requester, nsLookup nslookup.NSLookup, memoryDatabase memorydatabase.MemoryDatabase, messageBroker messagebroker.MessageBroker, appConfig *config.Config) error {
-//
-//	log.Print("Retrieving IP info")
-//	// Fetch current public IP and ISP information
-//	ipInfo, ipInfoError := ipinfo.RetrieveIPInfoFromResponse(ipInfoRequester)
-//
-//	if ipInfoError != nil {
-//		return ipInfoError
-//	}
-//
-//	// Validate that the current ISP matches the expected provider
-//	if ipInfo.OrgName != appConfig.ISPName {
-//		notifyMessage := fmt.Sprintf("Readed IP %s belongs to %s ISP, it seems than home is not using main ISP %s.", ipInfo.IP, ipInfo.OrgName, appConfig.ISPName)
-//
-//		log.Print(notifyMessage)
-//
-//		// Send notification about ISP change without updating storage
-//		encodedNotifyMessage := []byte(notifyMessage)
-//		notifyError := notify.Notify(messageBroker, appConfig.NotifyQueue, encodedNotifyMessage)
-//		// end function, if notifyError is nil, final error is also nil as expected
-//		return notifyError
-//	}
-//
-//	log.Print("Checking IP info in storage.")
-//	// Check if the current IP differs from the stored IP
-//	requireUpdate, storageError := storage.CheckDatabase(ctx, ipInfo.IP, memoryDatabase)
-//	if storageError != nil {
-//		return storageError
-//	}
-//
-//	log.Printf("IP update required: %v", requireUpdate)
-//
-//	// If no local change detected, verify against DNS resolution
-//	if !requireUpdate {
-//		log.Printf("Checking if remote IP matches with stored IP.")
-//		// Perform DNS lookup to get the IP associated with the domain
-//		remoteIP, nsLookupError := nslookup.GetIP(ctx, nsLookup, appConfig.DomainName)
-//		if nsLookupError != nil {
-//			return nsLookupError
-//		}
-//
-//		// Update required if DNS IP differs from current IP
-//		requireUpdate = remoteIP != ipInfo.IP
-//
-//	}
-//
-//	// Process IP change if update is required
-//	if requireUpdate {
-//
-//		notifyMessage := fmt.Sprintf("Home IP has changed to %s.", ipInfo.IP)
-//		log.Print(notifyMessage)
-//
-//		// Send notification message
-//		encodedNotifyMessage := []byte(notifyMessage)
-//		encodedIP := []byte(ipInfo.IP)
-//		notifyError := notify.Notify(messageBroker, appConfig.NotifyQueue, encodedNotifyMessage)
-//		if notifyError != nil {
-//			return notifyError
-//		}
-//		// Send IP update message for DNS/record updates
-//		notifyError = notify.Notify(messageBroker, appConfig.UpdateQueue, encodedIP)
-//		if notifyError != nil {
-//			return notifyError
-//		}
-//
-//		// Update IP only after successful notification
-//		log.Print("Updating IP in storage")
-//		updateError := storage.UpdateIP(ctx, ipInfo.IP, memoryDatabase)
-//
-//		if updateError != nil {
-//			return updateError
-//		}
-//	}
-//
-//	return nil
-//}
