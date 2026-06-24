@@ -67,7 +67,7 @@ func main() {
 	redisClient := redis.NewRedisClient(appConfig.RedisConfig)
 
 	appLogger.DebugContext(ctx, "Initiating redis instance")
-	if redisErr := redisClient.Initiate(ctx); err != nil {
+	if redisErr := redisClient.Initiate(ctx); redisErr != nil {
 		appLogger.ErrorContext(ctx, "Error initiating redis instance", "error", redisErr)
 		os.Exit(1)
 	}
