@@ -75,7 +75,7 @@ coverhtml: ## Generate global code coverage report in HTML
 	go tool cover -html=cover/coverage.report -o coverage.html;
 
 build: ## Build the binary file
-	@go build -v $(PKG)/cmd/${{PROJECT_NAME}}
+	@go build -v $(PKG)/cmd/$(PROJECT_NAME)
 
 clean: ## Remove previous build
 	@rm -f $(PROJECT_NAME)
