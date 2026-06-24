@@ -87,7 +87,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 // belong to the expected ISP, so we notify and stop without touching storage.
 func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPInfo) error {
 
-	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
+	log := logger.FromContext(ctx).With("operation", "Monitor.notifyDifferentISP")
 	log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	notifyMessage := []byte(fmt.Sprintf("Read IP %s belongs to %s ISP, it seems that home is not using main ISP %s.", ipinfo.IP, ipinfo.OrgName, monitor.settings.ISPName))
@@ -107,7 +107,7 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 // live DNS record. It returns whether an update is required (and any read error).
 func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo) (bool, error) {
 
-	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
+	log := logger.FromContext(ctx).With("operation", "Monitor.updateRequired")
 
 	// Rule 2: compare the current IP against the stored one.
 	storedIP, ipFound, retrieveIPErr := monitor.store.StoredIP(ctx)
@@ -154,7 +154,7 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 // notifications.
 func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) error {
 
-	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
+	log := logger.FromContext(ctx).With("operation", "Monitor.applyUpdate")
 
 	log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 	notifyChangeMessage := fmt.Sprintf("Home IP has changed to %s.", ipinfo.IP)
