@@ -151,9 +151,9 @@ build_package:
     - export GOARCH=arm64
   script:
     - make build
-    - nfpm package --packager archlinux
+    - cd packaging/nfpm && nfpm package --packager archlinux && cd ../..
     - mkdir arch_package
-    - mv *.pkg.tar.zst arch_package/
+    - mv packaging/nfpm/*.pkg.tar.zst arch_package/
   dependencies:
     - coverage
   artifacts:
