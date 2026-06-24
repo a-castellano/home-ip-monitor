@@ -33,6 +33,8 @@ lint_code:
 
 unit_tests:
   stage: unit_tests
+  rules:
+    - when: always
   before_script:
     - export CC=/usr/bin/clang
     - *install_mod
