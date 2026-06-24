@@ -19,41 +19,66 @@ A Go-based service that monitors your home's public IP address and notifies when
 Home IP Monitor is a lightweight service that:
 
 1. **Fetches your public IP** from [ipinfo.io](https://ipinfo.io/)
-2. **Checks for changes** by comparing with the previously stored IP
-3. **Validates ISP consistency** to ensure you're still with your expected provider
-4. **Sends notifications** via RabbitMQ when changes are detected
+2. **Validates ISP consistency** to ensure you're still with your expected provider
+3. **Checks for changes** by comparing with the previously stored IP, cross-checking against the domain's live DNS record when storage looks unchanged
+4. **Sends notifications** via RabbitMQ when changes are detected, persisting the new IP only after the notifications succeed
 
 ## Features
 
-- ✅ **Real-time IP monitoring** with configurable check intervals
-- ✅ **ISP validation** to detect unexpected provider changes
-- ✅ **Redis-based storage** for persistent IP tracking
-- ✅ **RabbitMQ integration** for reliable message delivery
-- ✅ **Systemd service** with automatic startup and timer
+- **Real-time IP monitoring** with configurable check intervals
+- **ISP validation** to detect unexpected provider changes
+- **Redis-based storage** for persistent IP tracking
+- **RabbitMQ integration** for reliable message delivery
+- **Systemd service** with automatic startup and timer
 
 ## Architecture
 
+The project follows a Clean Architecture layout: an inner `domain` layer that
+depends on nothing, an `app` layer that holds the use case, and an `infra` layer
+with the adapters that talk to the outside world (HTTP, DNS, Redis, RabbitMQ).
+Dependencies always point inwards — the use case only knows about domain ports
+(interfaces), never about concrete infrastructure.
+
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Systemd Timer │───▶│  Home IP Monitor│───▶│   ipinfo.io     │
-│   (every 2min)  │    │   (Go Service)  │    │   (IP Detection)│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│     Redis       │◀───│   Storage Layer │───▶│   RabbitMQ      │
-│  (IP History)   │    │   (IP Compare)  │    │  (Notifications)│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+                         cmd/home-ip-monitor (composition root)
+                                       │ wires adapters into the use case
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ app: Monitor use case                                                  │
+│   reads IP → validates ISP → compares stored/DNS IP → notifies/persists│
+└──────────────────────────────────────────────────────────────────────┘
+        │ depends only on domain ports (interfaces)
+        ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ domain: IPInfo, IPInfoProvider, DNSResolver, IPStore, Notifier         │
+└──────────────────────────────────────────────────────────────────────┘
+        ▲ implemented by infra adapters
+        │
+┌───────────────┬───────────────┬───────────────┬───────────────────────┐
+│ ipinfodata    │ nslookup      │ storage       │ notify                │
+│ → ipinfo.io   │ → DNS server  │ → Redis/Valkey│ → RabbitMQ            │
+└───────────────┴───────────────┴───────────────┴───────────────────────┘
 ```
 
-### Components
+### Layers and components
 
-- **Monitor**: Core logic for IP checking and change detection
-- **IPInfo**: Client for fetching public IP information
-- **Storage**: Redis-based persistence layer
-- **Notify**: RabbitMQ message broker integration
-- **NSLookup**: DNS resolution for domain verification
-- **Config**: Environment-based configuration management
+- **`internal/domain`**: pure business types and ports (interfaces) with no
+  external dependencies — `IPInfo` (+ `BelongsToISP`) and the
+  `IPInfoProvider`, `DNSResolver`, `IPStore` and `Notifier` ports.
+- **`internal/app`**: the `Monitor` use case. It receives the domain ports via
+  `NewMonitor` and an `app.Settings` value object, so it has zero knowledge of
+  HTTP, Redis or RabbitMQ.
+- **`internal/infra/ipinfodata`**: HTTP adapter that fetches the public IP from
+  [ipinfo.io](https://ipinfo.io/) and maps it to `domain.IPInfo`.
+- **`internal/infra/nslookup`**: DNS adapter that resolves the configured domain
+  through an external DNS server.
+- **`internal/infra/storage`**: Redis/Valkey-backed adapter (via go-services
+  `memorydatabase`) for persistent IP tracking.
+- **`internal/infra/notify`**: RabbitMQ adapter (via go-services
+  `messagebroker`) for delivering messages.
+- **`internal/infra/config`**: environment-based configuration loading.
+- **`cmd/home-ip-monitor`**: the composition root (`main`) that builds every
+  adapter, maps `config.Config` to `app.Settings` and runs the use case.
 
 ## Installation
 
@@ -84,7 +109,8 @@ The project provides pre-built packages for Arch Linux. Download the latest pack
 3. **Configure the service**:
 
    ```bash
-   # Edit the configuration file
+   # Copy the sample file and edit your configuration
+   sudo cp /etc/default/windmaker-home-ip-monitor-example /etc/default/windmaker-home-ip-monitor
    sudo vim /etc/default/windmaker-home-ip-monitor
    ```
 
@@ -116,6 +142,17 @@ All configuration is done through environment variables:
 | `UPDATE_QUEUE_NAME` | Queue for IP update messages    | `"home-ip-monitor-updates"`       |
 | `NOTIFY_QUEUE_NAME` | Queue for notification messages | `"home-ip-monitor-notifications"` |
 
+#### Application and Logging
+
+Logging is handled through [go-types `slog`](https://git.windmaker.net/a-castellano/go-types/-/tree/master/slog). `APP_NAME` is required by that type; the rest fall back to sane defaults.
+
+| Variable          | Description                                            | Default          |
+| ----------------- | ----------------------------------------------------- | ---------------- |
+| `APP_NAME`        | Application name attached to every log entry          | _(required)_     |
+| `SLOG_LEVEL`      | Log level: `Debug`, `Info`, `Warn` or `Error`         | `Info`           |
+| `SLOG_FORMAT`     | Log format: `JSON` or `plain`                         | `JSON`           |
+| `SLOG_ADD_SOURCE` | Whether to add `file:line` to log entries             | `true`           |
+
 #### Redis Configuration
 
 See [go-types Redis documentation](https://git.windmaker.net/a-castellano/go-types/-/tree/master/redis) for complete Redis configuration options.
@@ -140,9 +177,19 @@ See [go-types RabbitMQ documentation](https://git.windmaker.net/a-castellano/go-
 
 ### Configuration File
 
-The package installation creates `/etc/default/windmaker-home-ip-monitor`. Edit this file to configure the service:
+The package installs a sample file at `/etc/default/windmaker-home-ip-monitor-example`. Copy it to `/etc/default/windmaker-home-ip-monitor` (the path read by the systemd unit) and edit it to configure the service:
 
 ```bash
+sudo cp /etc/default/windmaker-home-ip-monitor-example /etc/default/windmaker-home-ip-monitor
+sudo vim /etc/default/windmaker-home-ip-monitor
+```
+
+```bash
+# Application and logging
+APP_NAME="home-ip-monitor"
+SLOG_LEVEL="Info"
+SLOG_FORMAT="JSON"
+
 # Required configuration
 DOMAIN_NAME="your-domain.com"
 ISP_NAME="DIGI"
@@ -203,47 +250,40 @@ Contains human-readable notifications:
 
 ```
 Home IP has changed to 192.168.1.100.
-Readed IP 192.168.1.100 belongs to DIGI ISP, it seems than home is not using main ISP ORANGE.
+Read IP 192.168.1.100 belongs to DIGI ISP, it seems that home is not using main ISP ORANGE.
 ```
 
 ### Monitoring and Logging
 
-The service logs to syslog with the following message types:
+The service uses structured logging through [`log/slog`](https://pkg.go.dev/log/slog) (via go-types `slog`). Output goes to standard streams, which systemd captures into the journal. The format (`JSON` or `plain`) and verbosity are controlled by `SLOG_FORMAT` and `SLOG_LEVEL`.
 
-- **INFO**: Configuration loading, IP retrieval, status updates
-- **ERROR**: Connection failures, configuration errors, processing failures
+- **DEBUG**: configuration loading, IP retrieval, comparison and decision steps (most of the flow is logged at this level)
+- **INFO**: high-level milestones such as service startup
+- **ERROR**: connection failures, configuration errors, processing failures
 
-Example log output:
+Each entry carries an `operation` attribute (e.g. `NewConfig`, `Monitor.Run`) plus structured fields. Example output with `SLOG_FORMAT="JSON"` and `SLOG_LEVEL="Debug"`:
 
-```
-Loading config
-Domain name has been set to "home.example.com"
-ISP name has been set to "DIGI"
-DNS Server has been set to "8.8.8.8:53"
-Creating Redis client
-Creating RabbitMQ client
-Retrieving IP info
-Retrieved IP is "192.168.1.100"
-Retrieved OrgName is "DIGI"
-Checking IP info in storage.
-IP update required: true
-Home IP has changed to 192.168.1.100.
-Updating IP in storage
-Execution finished
+```json
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Loading config"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Domain name has been set","operation":"NewConfig","domain":"home.example.com"}
+{"time":"2026-06-24T10:00:00Z","level":"INFO","msg":"Initiating required services"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Validating that ipinfo provider is the expected provider","operation":"Monitor.Run","currentProvider":"DIGI","expectedProvider":"DIGI","currentIP":"192.168.1.100"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"IPs differ, stored IP must be updated","operation":"Monitor.Run","currentIP":"192.168.1.100","storedIP":"192.168.1.99"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Updating stored IP","operation":"Monitor.Run","currentIP":"192.168.1.100"}
 ```
 
 ## Development
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.26+
 - Docker (or Podman) and Docker (or Podman) Compose
 - Make
 
 ### Setup Development Environment
 
 ```bash
-# Start development services
+# Start development services (Go container + Valkey + RabbitMQ)
 docker-compose -f development/docker-compose.yml up -d
 
 # Install dependencies
@@ -258,20 +298,39 @@ make coverage
 make coverhtml
 ```
 
+To run the binary against the development services in a production-like setup,
+build it and exec into the dev container, then load the sample environment:
+
+```bash
+make build
+docker-compose -f development/docker-compose.yml exec golang /bin/bash
+
+# Inside the container
+source development/env_variables
+./home-ip-monitor
+```
+
+`development/env_variables` points `REDIS_HOST`/`RABBITMQ_HOST` at the Valkey and
+RabbitMQ containers and sets `APP_NAME` and the `SLOG_*` logging variables, so the
+service runs in an environment similar to production.
+
 ### Project Structure
 
 ```
 home-ip-monitor/
-├── app/                    # Application orchestration
-├── config/                 # Configuration management
-├── ipinfo/                 # IP information client
-├── monitor/                # Core monitoring logic
-├── nslookup/               # DNS resolution
-├── notify/                 # Message notification
-├── storage/                # Data persistence
-├── development/            # Docker development setup
-├── packaging/              # Systemd and packaging files
-└── scripts/                # Build and utility scripts
+├── cmd/
+│   └── home-ip-monitor/    # main package: composition root / wiring
+├── internal/
+│   ├── domain/             # business types and ports (no external deps)
+│   ├── app/                # Monitor use case (depends only on domain)
+│   └── infra/              # adapters that implement the domain ports
+│       ├── config/         # environment-based configuration
+│       ├── ipinfodata/     # ipinfo.io HTTP client (+ generated mocks)
+│       ├── nslookup/       # DNS resolution
+│       ├── storage/        # Redis/Valkey persistence
+│       └── notify/         # RabbitMQ notifications
+├── development/            # Docker/Podman dev setup and coverage script
+└── packaging/              # nfpm spec, systemd units and defaults
 ```
 
 ## Testing
@@ -296,6 +355,54 @@ make coverage
 # HTML coverage report
 make coverhtml
 ```
+
+Per-module targets are also available for focused runs, e.g. `make test_app`,
+`make test_config`, `make test_storage` (and their `*_unit` variants for unit
+tests only). Run `make help` to list every target.
+
+### Mocks
+
+HTTP-dependent code is unit-tested by mocking the `http.RoundTripper` instead of
+hitting the network. Mocks are generated with
+[Uber's `mockgen`](https://github.com/uber-go/mock), registered as a Go tool in
+`go.mod` via the `tool` directive (requires Go 1.24+), so no global install is
+needed — `go test`/`go generate` resolve it automatically.
+
+The generator is declared with a `//go:generate` directive in
+`internal/infra/ipinfodata/ipinfodata.go`:
+
+```go
+//go:generate go tool mockgen -destination mocks/http.go -package mock net/http RoundTripper
+```
+
+Regenerate the mocks after changing a mocked interface:
+
+```bash
+go generate ./...
+```
+
+> The directive must live in a file **without** build tags (e.g. `ipinfodata.go`).
+> If it sits in a `_test.go` file guarded by `//go:build`, `go generate ./...` skips
+> it unless you pass the matching `-tags`.
+
+This produces `internal/infra/ipinfodata/mocks/http.go` (package `mock`) exposing
+`MockRoundTripper`. Tests build an `http.Client` with the mock transport and set
+expectations on `RoundTrip`:
+
+```go
+ctrl := gomock.NewController(t)
+transport := mock.NewMockRoundTripper(ctrl)
+transport.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+    StatusCode: 200,
+    Body:       io.NopCloser(bytes.NewBufferString(`{"ip":"1.2.3.4","org":"AS1 EXAMPLE"}`)),
+}, nil)
+
+requester := IPInfoRequester{httpClient: &http.Client{Transport: transport}}
+info, err := requester.GetIPInfo(context.Background())
+```
+
+Generated mocks live under `mocks/` directories and are excluded from the coverage
+report by `development/coverage.sh` (the `PKG_LIST` filter drops `/mocks` packages).
 
 ### Test Coverage
 
