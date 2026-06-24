@@ -78,85 +78,85 @@ func (monitor Monitor) Run(ctx context.Context) error {
 			return notifyError
 		}
 
-	} else {
-		log.DebugContext(ctx, "Current provider is the expected provider, checking if IP has changed by retrieving the current stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		return nil
+	}
 
-		// Rule 2: compare the current IP against the stored one.
-		storedIP, ipFound, retrieveIPErr := monitor.store.StoredIP(ctx)
+	log.DebugContext(ctx, "Current provider is the expected provider, checking if IP has changed by retrieving the current stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
-		if retrieveIPErr != nil {
-			log.ErrorContext(ctx, "Error retrieving current stored IP from store", "error", retrieveIPErr)
+	// Rule 2: compare the current IP against the stored one.
+	storedIP, ipFound, retrieveIPErr := monitor.store.StoredIP(ctx)
 
-			return retrieveIPErr
-		}
+	if retrieveIPErr != nil {
+		log.ErrorContext(ctx, "Error retrieving current stored IP from store", "error", retrieveIPErr)
 
-		if ipFound {
-			log.DebugContext(ctx, "There is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
-			if storedIP != ipinfo.IP {
-				log.DebugContext(ctx, "IPs differ, stored IP must be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
-				updateIP = true
-			} else {
-				log.DebugContext(ctx, "IPs are the same, stored IP will not be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
-			}
-		} else {
-			log.DebugContext(ctx, "There is no stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		return retrieveIPErr
+	}
+
+	if ipFound {
+		log.DebugContext(ctx, "There is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
+		if storedIP != ipinfo.IP {
+			log.DebugContext(ctx, "IPs differ, stored IP must be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
 			updateIP = true
+		} else {
+			log.DebugContext(ctx, "IPs are the same, stored IP will not be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
+		}
+	} else {
+		log.DebugContext(ctx, "There is no stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		updateIP = true
+	}
+
+	// Rule 3: storage says it is unchanged, but cross-check against the
+	// domain's live DNS record in case storage drifted from reality.
+	if !updateIP {
+		log.DebugContext(ctx, "Stored IP matches, cross-checking against domain DNS resolution", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName)
+
+		retrievedIPFromDNS, dnsRetrievalErr := monitor.resolver.Resolve(ctx, monitor.settings.DomainName)
+
+		if dnsRetrievalErr != nil {
+			log.ErrorContext(ctx, "Error resolving domain IP", "error", dnsRetrievalErr, "domain", monitor.settings.DomainName)
+			return dnsRetrievalErr
 		}
 
-		// Rule 3: storage says it is unchanged, but cross-check against the
-		// domain's live DNS record in case storage drifted from reality.
-		if !updateIP {
-			log.DebugContext(ctx, "Stored IP matches, cross-checking against domain DNS resolution", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName)
-
-			retrievedIPFromDNS, dnsRetrievalErr := monitor.resolver.Resolve(ctx, monitor.settings.DomainName)
-
-			if dnsRetrievalErr != nil {
-				log.ErrorContext(ctx, "Error resolving domain IP", "error", dnsRetrievalErr, "domain", monitor.settings.DomainName)
-				return dnsRetrievalErr
-			}
-
-			if retrievedIPFromDNS != ipinfo.IP {
-				log.DebugContext(ctx, "IP from domain DNS resolution differs from ipinfo IP, updating IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
-				updateIP = true
-			} else {
-				log.DebugContext(ctx, "IP from domain DNS resolution matches ipinfo IP, update is not required", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
-			}
-
+		if retrievedIPFromDNS != ipinfo.IP {
+			log.DebugContext(ctx, "IP from domain DNS resolution differs from ipinfo IP, updating IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
+			updateIP = true
+		} else {
+			log.DebugContext(ctx, "IP from domain DNS resolution matches ipinfo IP, update is not required", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
 		}
 
-		// Rule 4: notify both queues, then persist (notify-before-persist order).
-		if updateIP {
+	}
 
-			log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
-			notifyChangeMessage := fmt.Sprintf("Home IP has changed to %s.", ipinfo.IP)
+	// Rule 4: notify both queues, then persist (notify-before-persist order).
+	if updateIP {
 
-			// Send notification message
-			encodedNotifyChangeMessage := []byte(notifyChangeMessage)
-			encodedIP := []byte(ipinfo.IP)
+		log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		notifyChangeMessage := fmt.Sprintf("Home IP has changed to %s.", ipinfo.IP)
 
-			notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, encodedNotifyChangeMessage)
+		// Send notification message
+		encodedNotifyChangeMessage := []byte(notifyChangeMessage)
+		encodedIP := []byte(ipinfo.IP)
 
-			if notifyChangeError != nil {
-				log.ErrorContext(ctx, "Error notifying about Home IP change", "error", notifyChangeError)
-				return notifyChangeError
-			}
+		notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, encodedNotifyChangeMessage)
 
-			log.DebugContext(ctx, "Notifying about IP change in DNS update queue", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		if notifyChangeError != nil {
+			log.ErrorContext(ctx, "Error notifying about Home IP change", "error", notifyChangeError)
+			return notifyChangeError
+		}
 
-			notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, encodedIP)
-			if notifyDNSError != nil {
-				log.ErrorContext(ctx, "Error notifying DNS queue with IP to change", "error", notifyDNSError)
-				return notifyDNSError
-			}
+		log.DebugContext(ctx, "Notifying about IP change in DNS update queue", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
-			log.DebugContext(ctx, "Updating stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, encodedIP)
+		if notifyDNSError != nil {
+			log.ErrorContext(ctx, "Error notifying DNS queue with IP to change", "error", notifyDNSError)
+			return notifyDNSError
+		}
 
-			updateIPError := monitor.store.SaveIP(ctx, ipinfo.IP)
-			if updateIPError != nil {
-				log.ErrorContext(ctx, "Error updating retrieved IP in store", "error", updateIPError)
-				return updateIPError
-			}
+		log.DebugContext(ctx, "Updating stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
+		updateIPError := monitor.store.SaveIP(ctx, ipinfo.IP)
+		if updateIPError != nil {
+			log.ErrorContext(ctx, "Error updating retrieved IP in store", "error", updateIPError)
+			return updateIPError
 		}
 
 	}

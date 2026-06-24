@@ -3,6 +3,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"testing"
 )
@@ -243,7 +244,9 @@ func TestConfigWithoutEnvVariables(t *testing.T) {
 	setUp()
 	defer teardown()
 
-	_, err := NewConfig()
+	ctx := context.Background()
+
+	_, err := NewConfig(ctx)
 
 	if err == nil {
 		t.Errorf("TestConfigWithoutEnvVariables should fail.")
@@ -264,7 +267,9 @@ func TestConfigWithInvalidRedisPort(t *testing.T) {
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
 	os.Setenv("REDIS_PORT", "invalidport")
-	_, err := NewConfig()
+
+	ctx := context.Background()
+	_, err := NewConfig(ctx)
 
 	if err == nil {
 		t.Errorf("TestConfigWithInvalidRedisPort should fail.")
@@ -285,7 +290,9 @@ func TestConfigWithInvalidRabbitmqPort(t *testing.T) {
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
 	os.Setenv("RABBITMQ_PORT", "invalidport")
-	_, err := NewConfig()
+
+	ctx := context.Background()
+	_, err := NewConfig(ctx)
 
 	if err == nil {
 		t.Errorf("TestConfigWithInvalidRabbitmqPort should fail.")
@@ -304,7 +311,9 @@ func TestConfigwithoutDNSServer(t *testing.T) {
 
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	_, err := NewConfig()
+
+	ctx := context.Background()
+	_, err := NewConfig(ctx)
 
 	if err == nil {
 		t.Errorf("TestConfigwithoutDNSServer should fail.")
@@ -323,7 +332,9 @@ func TestConfigwithoutDomainName(t *testing.T) {
 
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	_, err := NewConfig()
+
+	ctx := context.Background()
+	_, err := NewConfig(ctx)
 
 	if err == nil {
 		t.Errorf("TestConfigwithoutDomainName should fail.")
@@ -342,7 +353,9 @@ func TestConfigwithoutISPName(t *testing.T) {
 
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
-	_, err := NewConfig()
+
+	ctx := context.Background()
+	_, err := NewConfig(ctx)
 
 	if err == nil {
 		t.Errorf("TestConfigwithoutISPName should fail.")
@@ -362,7 +375,9 @@ func TestConfig(t *testing.T) {
 	os.Setenv("ISP_NAME", "DIGI")
 	os.Setenv("DNS_SERVER", "1.1.1.1:53")
 	os.Setenv("DOMAIN_NAME", "test.windmaker.net")
-	config, err := NewConfig()
+
+	ctx := context.Background()
+	config, err := NewConfig(ctx)
 
 	if err != nil {
 		t.Errorf("TestConfigWithoutEnvVariables should not fail.")

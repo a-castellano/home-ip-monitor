@@ -130,6 +130,32 @@ func TestDifferentISPNotifyError(t *testing.T) {
 
 }
 
+func TestDifferentISP(t *testing.T) {
+
+	ipinfoData := domain.IPInfo{IP: "1.1.1.1", OrgName: "Test"}
+	ipinfo :=
+		ipInfoMock{ipInfoData: ipinfoData, err: nil}
+
+	resolver := dnsResolverMock{result: "any", err: nil}
+
+	store := ipStoreMock{storedIPValue: "1.2.3.4", storeFound: true, storeError: nil, saveError: nil}
+
+	notifier := notifierMock{err: nil}
+
+	settings := Settings{ISPName: "Different", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
+
+	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
+
+	ctx := context.Background()
+
+	err := monitor.Run(ctx)
+
+	if err != nil {
+		t.Errorf("TestDifferentISP should not fail")
+	}
+
+}
+
 // Rule 2: the ISP matches, but reading the stored IP fails. Run must propagate
 // the store read error.
 func TestStoredIPReadError(t *testing.T) {
