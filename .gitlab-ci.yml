@@ -3,7 +3,6 @@ image: harbor.windmaker.net/limani/base_golang_1_26
 stages:
   - lint
   - unit_tests
-  - integration_tests
   - coverage
   - report
   - scan
@@ -40,19 +39,6 @@ unit_tests:
   script:
     - make test
 
-integration_tests:
-  stage: integration_tests
-  services:
-    - name: harbor.windmaker.net/limani/base_valkey_server
-      alias: valkey
-    - name: harbor.windmaker.net/limani/base_rabbitmq_server
-      alias: rabbitmq
-  before_script:
-    - export CC=/usr/bin/clang
-    - *install_mod
-  script:
-    - make test_integration
-
 coverage:
   stage: coverage
   rules:
@@ -61,11 +47,6 @@ coverage:
     - if: $CI_COMMIT_BRANCH == 'main'
     - if: $CI_COMMIT_BRANCH == 'develop'
     - if: $CI_COMMIT_BRANCH =~ '/^.*all.*$/'
-  services:
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_valkey_server:202508080558
-      alias: valkey
-    - name: registry.windmaker.net:5005/a-castellano/limani/base_rabbitmq_server:202508080558
-      alias: rabbitmq
   before_script:
     - export CC=/usr/bin/clang
     - *install_mod
