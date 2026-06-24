@@ -1,0 +1,25 @@
+export APP_NAME="home-ip-monitor"
+export SLOG_LEVEL="Debug"
+export SLOG_FORMAT="JSON"
+
+export DOMAIN_NAME="maler.windmaker.net"
+export DNS_SERVER="1.1.1.1:53"
+
+export ISP_NAME="DIGI"
+
+export UPDATE_QUEUE_NAME="home-ip-monitor-updates"
+export NOTIFY_QUEUE_NAME="home-ip-monitor-notifications"
+
+# Redis config
+
+export REDIS_HOST="valkey"
+export REDIS_PORT=6379
+export REDIS_PASSWORD=""
+export REDIS_DATABASE=10
+
+# RabbitMQ config
+
+export RABBITMQ_HOST="rabbitmq"
+export RABBITMQ_PORT=5672
+export RABBITMQ_USER="guest"
+export RABBITMQ_PASSWORD="guest"

@@ -5,6 +5,19 @@
 # https://git.windmaker.net/a-castellano/home-ip-monitor
 #
 
+# Application config
+
+APP_NAME="home-ip-monitor"
+
+# Logging config
+
+SLOG_LEVEL="Info"
+SLOG_FORMAT="JSON"
+
+# Monitoring config
+
+#DOMAIN_NAME="home.example.com"
+#DNS_SERVER="8.8.8.8:53"
 #ISP_NAME="DIGI"
 
 UPDATE_QUEUE_NAME="home-ip-monitor-updates"
