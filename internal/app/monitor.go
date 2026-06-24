@@ -82,6 +82,25 @@ func (monitor Monitor) Run(ctx context.Context) error {
 			updateIP = true
 		}
 
+		if !updateIP {
+			log.DebugContext(ctx, "For the time being, IP does not require to be updated, cheking resolver", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "domain", monitor.settings.DomainName, "operation", "Monitor.Run")
+
+			retriedIPFromDNS, dnsRetirevalErr := monitor.resolver.Resolve(ctx, monitor.settings.DomainName)
+
+			if dnsRetirevalErr != nil {
+				log.ErrorContext(ctx, "Error resolving domain ip", "error", dnsRetirevalErr, "domain", monitor.settings.DomainName, "operation", "Monitor.Run")
+				return dnsRetirevalErr
+			}
+
+			if retriedIPFromDNS != ipinfo.IP {
+				log.DebugContext(ctx, "retrieved IP from domain DNS resolution differs from ipinfo IP, updafing IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retriedIPFromDNS", retriedIPFromDNS, "operation", "Monitor.Run")
+				updateIP = true
+			} else {
+				log.DebugContext(ctx, "retrieved IP from domain DNS resolution does no differ from ipinfo IP, update is not required", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retriedIPFromDNS", retriedIPFromDNS, "operation", "Monitor.Run")
+			}
+
+		}
+
 		if updateIP {
 
 			log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "curretIP", ipinfo.IP, "operation", "Monitor.Run")
