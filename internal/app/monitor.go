@@ -46,7 +46,7 @@ func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, sto
 //	        failed notification never leaves storage ahead of the notifications.
 func (monitor Monitor) Run(ctx context.Context) error {
 
-	var updateIP bool = false
+	var updateIP = false
 
 	log := logger.FromContext(ctx)
 	log.DebugContext(ctx, "Starting monitor", "settings", monitor.settings, "operation", "Monitor.Run")
