@@ -12,7 +12,7 @@ import (
 	redis "github.com/a-castellano/go-services/infra/redis"
 	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
 	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
-	slogconfig "github.com/a-castellano/go-types/slog"
+	slogconfig "github.com/a-castellano/go-types/types/slog"
 	app "github.com/a-castellano/home-ip-monitor/internal/app"
 	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
 	ipinfodata "github.com/a-castellano/home-ip-monitor/internal/infra/ipinfodata"
