@@ -6,7 +6,12 @@ import (
 
 	logger "github.com/a-castellano/go-services/infra/logger"
 	domain "github.com/a-castellano/home-ip-monitor/internal/domain"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
+
+const tracerName = "github.com/a-castellano/home-ip-monitor"
 
 // Settings holds the four business values the use case needs. It is a plain
 // value object so the application layer never sees infra wiring (Redis/RabbitMQ
@@ -36,7 +41,7 @@ func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, sto
 
 // Run executes the monitoring flow:
 //
-//	Rule 1: read the current public IP and confirm it belongs to the expected ISP.
+//	Rule 1: read the current public IP and confirm it belongs to the expected isp.
 //	        If it does not, notify (only) and stop without touching storage.
 //	Rule 2: compare the current IP with the stored one. If there is no stored IP
 //	        or it differs, an update is required.
@@ -45,6 +50,13 @@ func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, sto
 //	Rule 4: on update, notify both queues and only then persist the new IP, so a
 //	        failed notification never leaves storage ahead of the notifications.
 func (monitor Monitor) Run(ctx context.Context) error {
+
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.Run")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("operation", "Run"),
+	)
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
 	log.DebugContext(ctx, "Starting monitor", "settings", monitor.settings)
@@ -55,37 +67,70 @@ func (monitor Monitor) Run(ctx context.Context) error {
 	ipinfo, getIPInfoErr := monitor.provider.GetIPInfo(ctx)
 
 	if getIPInfoErr != nil {
-		log.ErrorContext(ctx, "Error retrieving ipinfo data", "error", getIPInfoErr)
+
+		errorString := "error retrieving ipinfo data"
+		span.RecordError(getIPInfoErr)
+		span.SetStatus(codes.Error, errorString)
+		log.ErrorContext(ctx, errorString, "error", getIPInfoErr)
+
 		return getIPInfoErr
 	}
 
 	log.DebugContext(ctx, "Validating that ipinfo provider is the expected provider", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
-	// Rule 1: the IP must belong to the expected ISP. If not, notify and stop:
+	// Rule 1: the IP must belong to the expected isp. If not, notify and stop:
 	// we do not update storage because this IP is not the home connection.
 	if !ipinfo.BelongsToISP(monitor.settings.ISPName) {
-		return monitor.notifyDifferentISP(ctx, ipinfo)
+		span.SetAttributes(attribute.Bool("isp.differs", true))
+
+		errNotifyDifferentISP := monitor.notifyDifferentISP(ctx, ipinfo)
+
+		if errNotifyDifferentISP != nil {
+			span.RecordError(errNotifyDifferentISP)
+			span.SetStatus(codes.Error, "error notifying different ISP")
+		}
+
+		return errNotifyDifferentISP
 	}
+	span.SetAttributes(attribute.Bool("isp.differs", false))
 
 	log.DebugContext(ctx, "Current provider is the expected provider, checking if IP has changed by retrieving the current stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	// Rules 2 & 3: decide whether the stored IP needs updating.
 	updateIP, updateRequiredErr := monitor.updateRequired(ctx, ipinfo)
 	if updateRequiredErr != nil {
+		span.SetStatus(codes.Error, updateRequiredErr.Error())
+
 		return updateRequiredErr
 	}
 
 	// Rule 4: notify both queues, then persist (notify-before-persist order).
 	if updateIP {
-		return monitor.applyUpdate(ctx, ipinfo)
+		span.SetAttributes(attribute.Bool("ip.update", true))
+
+		errApplyUpdate := monitor.applyUpdate(ctx, ipinfo)
+
+		if errApplyUpdate != nil {
+			span.SetStatus(codes.Error, "error applying IP update")
+		}
+
+		return errApplyUpdate
 	}
 
+	span.SetAttributes(attribute.Bool("ip.update", false))
 	return nil
 }
 
 // notifyDifferentISP handles Rule 1's notify-only path: the current IP does not
 // belong to the expected ISP, so we notify and stop without touching storage.
 func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPInfo) error {
+
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.notifyDifferentISP")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("operation", "notifyDifferentISP"),
+	)
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.notifyDifferentISP")
 	log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
@@ -95,7 +140,13 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 	notifyError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, notifyMessage)
 
 	if notifyError != nil {
-		log.ErrorContext(ctx, "Error notifying about ISP change", "error", notifyError)
+
+		errorString := "error notifying about ISP change"
+
+		span.RecordError(notifyError)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "error", notifyError)
 		return notifyError
 	}
 
@@ -107,23 +158,40 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 // live DNS record. It returns whether an update is required (and any read error).
 func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo) (bool, error) {
 
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.updateRequired")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("operation", "updateRequired"),
+	)
+
 	log := logger.FromContext(ctx).With("operation", "Monitor.updateRequired")
 
 	// Rule 2: compare the current IP against the stored one.
 	storedIP, ipFound, retrieveIPErr := monitor.store.StoredIP(ctx)
 
 	if retrieveIPErr != nil {
-		log.ErrorContext(ctx, "Error retrieving current stored IP from store", "error", retrieveIPErr)
+
+		errorString := "error retrieving current stored IP from store"
+
+		span.RecordError(retrieveIPErr)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "error", retrieveIPErr)
+
 		return false, retrieveIPErr
 	}
 
 	if !ipFound {
+		span.SetAttributes(attribute.Bool("ip.found", false))
 		log.DebugContext(ctx, "There is no stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 		return true, nil
 	}
+	span.SetAttributes(attribute.Bool("ip.found", true))
 
 	log.DebugContext(ctx, "There is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
 	if storedIP != ipinfo.IP {
+		span.SetAttributes(attribute.Bool("ip.differs", true))
 		log.DebugContext(ctx, "IPs differ, stored IP must be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
 		return true, nil
 	}
@@ -136,15 +204,22 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 	retrievedIPFromDNS, dnsRetrievalErr := monitor.resolver.Resolve(ctx, monitor.settings.DomainName)
 
 	if dnsRetrievalErr != nil {
-		log.ErrorContext(ctx, "Error resolving domain IP", "error", dnsRetrievalErr, "domain", monitor.settings.DomainName)
+		errorString := "error resolving domain IP"
+
+		span.RecordError(dnsRetrievalErr)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "error", dnsRetrievalErr, "domain", monitor.settings.DomainName)
 		return false, dnsRetrievalErr
 	}
 
 	if retrievedIPFromDNS != ipinfo.IP {
+		span.SetAttributes(attribute.Bool("ip.differs", true))
 		log.DebugContext(ctx, "IP from domain DNS resolution differs from ipinfo IP, updating IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
 		return true, nil
 	}
 
+	span.SetAttributes(attribute.Bool("ip.differs", false))
 	log.DebugContext(ctx, "IP from domain DNS resolution matches ipinfo IP, update is not required", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
 	return false, nil
 }
@@ -153,6 +228,13 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 // the new IP, so a failed notification never leaves storage ahead of the
 // notifications.
 func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) error {
+
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.applyUpdate")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("operation", "applyUpdate"),
+	)
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.applyUpdate")
 
@@ -166,7 +248,14 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 	notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, encodedNotifyChangeMessage)
 
 	if notifyChangeError != nil {
-		log.ErrorContext(ctx, "Error notifying about Home IP change", "error", notifyChangeError)
+
+		errorString := "error notifying about Home IP change"
+
+		span.RecordError(notifyChangeError)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "error", notifyChangeError)
+
 		return notifyChangeError
 	}
 
@@ -174,7 +263,12 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 
 	notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, encodedIP)
 	if notifyDNSError != nil {
-		log.ErrorContext(ctx, "Error notifying DNS queue with IP to change", "error", notifyDNSError)
+		errorString := "error notifying DNS queue with IP to change"
+
+		span.RecordError(notifyDNSError)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "error", notifyDNSError)
 		return notifyDNSError
 	}
 
@@ -182,7 +276,12 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 
 	updateIPError := monitor.store.SaveIP(ctx, ipinfo.IP)
 	if updateIPError != nil {
-		log.ErrorContext(ctx, "Error updating retrieved IP in store", "error", updateIPError)
+		errorString := "error updating retrieved IP in store"
+
+		span.RecordError(updateIPError)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "error", updateIPError)
 		return updateIPError
 	}
 

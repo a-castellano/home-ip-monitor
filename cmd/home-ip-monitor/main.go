@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
-	"log"
+	systemlog "log"
 	"net/http"
 	"os"
 	"time"
 
 	logger "github.com/a-castellano/go-services/infra/logger"
+	opentelemetry "github.com/a-castellano/go-services/infra/opentelemetry"
 	rabbitmq "github.com/a-castellano/go-services/infra/rabbitmq"
 	redis "github.com/a-castellano/go-services/infra/redis"
 	memorydatabase "github.com/a-castellano/go-services/services/memorydatabase"
 	messagebroker "github.com/a-castellano/go-services/services/messagebroker"
+	otelconfig "github.com/a-castellano/go-types/types/opentelemetry"
 	slogconfig "github.com/a-castellano/go-types/types/slog"
 	app "github.com/a-castellano/home-ip-monitor/internal/app"
 	config "github.com/a-castellano/home-ip-monitor/internal/infra/config"
@@ -21,61 +23,68 @@ import (
 	storage "github.com/a-castellano/home-ip-monitor/internal/infra/storage"
 )
 
-func main() {
+func run(ctx context.Context) error {
+	log := logger.FromContext(ctx).With("operation", "main.run")
+	log.DebugContext(ctx, "Loading config")
 
-	// First, initiate logger
-	logConfig, err := slogconfig.NewConfig()
-	if err != nil {
-		log.Fatal(err)
+	otelConfig, otelConfigErr := otelconfig.NewConfig()
+	if otelConfigErr != nil {
+		log.ErrorContext(ctx, "telemetry config has errors", "error", otelConfigErr)
+		return otelConfigErr
 	}
 
-	appLogger := logger.NewLogger(logConfig)
-	ctx := logger.WithLogger(context.Background(), appLogger)
-
-	// Now from anywhere else in your program, you can use this:
-	appLogger.DebugContext(ctx, "Loading config")
+	shutdown, err := opentelemetry.SetupOpenTelemetry(ctx, otelConfig)
+	if err != nil {
+		// Telemetry failed to start; the app keeps running without it.
+		log.ErrorContext(ctx, "telemetry setup failed", "error", err)
+	}
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			log.ErrorContext(ctx, "telemetry shutdown failed", "error", err)
+		}
+	}()
 
 	appConfig, configErr := config.NewConfig(ctx)
 
 	if configErr != nil {
-		appLogger.ErrorContext(ctx, "Error loading app config", "error", configErr)
-		os.Exit(1)
+		log.ErrorContext(ctx, "Error loading app config", "error", configErr)
+		return configErr
 	}
 
-	appLogger.InfoContext(ctx, "Initiating required services")
-	appLogger.DebugContext(ctx, "Defining http client use by ipinfo package")
+	log.InfoContext(ctx, "Initiating required services")
+	log.DebugContext(ctx, "Defining http client use by ipinfo package")
 
 	httpClient := http.Client{
 		Timeout: time.Second * 5,
 	}
 
-	appLogger.DebugContext(ctx, "Defining ipinfo requester")
+	log.DebugContext(ctx, "Defining ipinfo requester")
 	requester := ipinfodata.IPInfoRequester{HttpClient: &httpClient}
 
-	appLogger.DebugContext(ctx, "Defining nslookup resolver")
+	log.DebugContext(ctx, "Defining nslookup resolver")
 	nsLookup := nslookup.DNSLookup{DNSServer: appConfig.DNSServer}
 
-	appLogger.DebugContext(ctx, "Defining rabbitmq instance")
+	log.DebugContext(ctx, "Defining rabbitmq instance")
 	rabbitmqClient := rabbitmq.NewRabbitmqClient(appConfig.RabbitmqConfig)
-	appLogger.DebugContext(ctx, "Defining messagebroker instance")
+	log.DebugContext(ctx, "Defining messagebroker instance")
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmqClient}
 
-	appLogger.DebugContext(ctx, "Defining notifier instance")
+	log.DebugContext(ctx, "Defining notifier instance")
 	notifier := notify.BrokerNotifier{Broker: messageBroker}
 
-	appLogger.DebugContext(ctx, "Defining redis instance")
+	log.DebugContext(ctx, "Defining redis instance")
 	redisClient := redis.NewRedisClient(appConfig.RedisConfig)
 
-	appLogger.DebugContext(ctx, "Initiating redis instance")
+	log.DebugContext(ctx, "Initiating redis instance")
 	if redisErr := redisClient.Initiate(ctx); redisErr != nil {
-		appLogger.ErrorContext(ctx, "Error initiating redis instance", "error", redisErr)
-		os.Exit(1)
+		log.ErrorContext(ctx, "Error initiating redis instance", "error", redisErr)
+		return redisErr
 	}
 
-	appLogger.DebugContext(ctx, "Defining memorydatabase instance")
+	log.DebugContext(ctx, "Defining memorydatabase instance")
 	memoryDatabase := memorydatabase.NewMemoryDatabase(&redisClient)
 
-	appLogger.DebugContext(ctx, "Defining store instance")
+	log.DebugContext(ctx, "Defining store instance")
 	store := storage.Store{Database: memoryDatabase}
 
 	monitorSettings := app.Settings{ISPName: appConfig.ISPName, DomainName: appConfig.DomainName, NotifyQueue: appConfig.NotifyQueue, UpdateQueue: appConfig.UpdateQueue}
@@ -83,7 +92,29 @@ func main() {
 	monitor := app.NewMonitor(requester, nsLookup, &store, &notifier, monitorSettings)
 	// Start the monitoring process
 	if monitorErr := monitor.Run(ctx); monitorErr != nil {
-		appLogger.ErrorContext(ctx, "Error running monitor", "error", monitorErr)
+		log.ErrorContext(ctx, "Error running monitor", "error", monitorErr)
+		return monitorErr
+	}
+
+	return nil
+}
+
+func main() {
+
+	// First, initiate logger
+	logConfig, err := slogconfig.NewConfig()
+	if err != nil {
+		systemlog.Fatal(err)
+	}
+
+	appLogger := logger.NewLogger(logConfig)
+	ctx := logger.WithLogger(context.Background(), appLogger)
+
+	runError := run(ctx)
+
+	if runError != nil {
+		appLogger.ErrorContext(ctx, "error running home-ip-monitor", "error", runError)
 		os.Exit(1)
 	}
+
 }
