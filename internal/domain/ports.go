@@ -13,5 +13,5 @@ type IPStore interface {
 	SaveIP(ctx context.Context, ip string) error
 }
 type Notifier interface {
-	Notify(ctx context.Context, queue string, message []byte) error
+	Notify(ctx context.Context, queue string, message string) error
 }

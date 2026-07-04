@@ -135,7 +135,7 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 	log := logger.FromContext(ctx).With("operation", "Monitor.notifyDifferentISP")
 	log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
-	notifyMessage := []byte(fmt.Sprintf("Read IP %s belongs to %s ISP, it seems that home is not using main ISP %s.", ipinfo.IP, ipinfo.OrgName, monitor.settings.ISPName))
+	notifyMessage := fmt.Sprintf("Read IP %s belongs to %s ISP, it seems that home is not using main ISP %s.", ipinfo.IP, ipinfo.OrgName, monitor.settings.ISPName)
 
 	notifyError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, notifyMessage)
 
@@ -241,11 +241,7 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 	log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 	notifyChangeMessage := fmt.Sprintf("Home IP has changed to %s.", ipinfo.IP)
 
-	// Send notification message
-	encodedNotifyChangeMessage := []byte(notifyChangeMessage)
-	encodedIP := []byte(ipinfo.IP)
-
-	notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, encodedNotifyChangeMessage)
+	notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, notifyChangeMessage)
 
 	if notifyChangeError != nil {
 
@@ -261,7 +257,7 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 
 	log.DebugContext(ctx, "Notifying about IP change in DNS update queue", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
-	notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, encodedIP)
+	notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, ipinfo.IP)
 	if notifyDNSError != nil {
 		errorString := "error notifying DNS queue with IP to change"
 
