@@ -14,6 +14,14 @@ import (
 
 const tracerName = "github.com/a-castellano/home-ip-monitor"
 
+// Business span attribute names, shared by the spans below.
+const (
+	attributeISPDiffers = "isp.differs"
+	attributeIPUpdate   = "ip.update"
+	attributeIPFound    = "ip.found"
+	attributeIPDiffers  = "ip.differs"
+)
+
 // Settings holds the four business values the use case needs. It is a plain
 // value object so the application layer never sees infra wiring (Redis/RabbitMQ
 // configs live in infra/config and are mapped to this in the composition root).
@@ -82,7 +90,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 	// Rule 1: the IP must belong to the expected isp. If not, notify and stop:
 	// we do not update storage because this IP is not the home connection.
 	if !ipinfo.BelongsToISP(monitor.settings.ISPName) {
-		span.SetAttributes(attribute.Bool("isp.differs", true))
+		span.SetAttributes(attribute.Bool(attributeISPDiffers, true))
 
 		errNotifyDifferentISP := monitor.notifyDifferentISP(ctx, ipinfo)
 
@@ -93,7 +101,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 
 		return errNotifyDifferentISP
 	}
-	span.SetAttributes(attribute.Bool("isp.differs", false))
+	span.SetAttributes(attribute.Bool(attributeISPDiffers, false))
 
 	log.DebugContext(ctx, "Current provider is the expected provider, checking if IP has changed by retrieving the current stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
@@ -107,7 +115,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 
 	// Rule 4: notify both queues, then persist (notify-before-persist order).
 	if updateIP {
-		span.SetAttributes(attribute.Bool("ip.update", true))
+		span.SetAttributes(attribute.Bool(attributeIPUpdate, true))
 
 		errApplyUpdate := monitor.applyUpdate(ctx, ipinfo)
 
@@ -118,7 +126,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 		return errApplyUpdate
 	}
 
-	span.SetAttributes(attribute.Bool("ip.update", false))
+	span.SetAttributes(attribute.Bool(attributeIPUpdate, false))
 	return nil
 }
 
@@ -184,15 +192,15 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 	}
 
 	if !ipFound {
-		span.SetAttributes(attribute.Bool("ip.found", false))
+		span.SetAttributes(attribute.Bool(attributeIPFound, false))
 		log.DebugContext(ctx, "There is no stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 		return true, nil
 	}
-	span.SetAttributes(attribute.Bool("ip.found", true))
+	span.SetAttributes(attribute.Bool(attributeIPFound, true))
 
 	log.DebugContext(ctx, "There is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
 	if storedIP != ipinfo.IP {
-		span.SetAttributes(attribute.Bool("ip.differs", true))
+		span.SetAttributes(attribute.Bool(attributeIPDiffers, true))
 		log.DebugContext(ctx, "IPs differ, stored IP must be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
 		return true, nil
 	}
@@ -215,12 +223,12 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 	}
 
 	if retrievedIPFromDNS != ipinfo.IP {
-		span.SetAttributes(attribute.Bool("ip.differs", true))
+		span.SetAttributes(attribute.Bool(attributeIPDiffers, true))
 		log.DebugContext(ctx, "IP from domain DNS resolution differs from ipinfo IP, updating IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
 		return true, nil
 	}
 
-	span.SetAttributes(attribute.Bool("ip.differs", false))
+	span.SetAttributes(attribute.Bool(attributeIPDiffers, false))
 	log.DebugContext(ctx, "IP from domain DNS resolution matches ipinfo IP, update is not required", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName, "retrievedIPFromDNS", retrievedIPFromDNS)
 	return false, nil
 }
