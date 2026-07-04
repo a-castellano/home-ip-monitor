@@ -2,10 +2,17 @@ package nslookup
 
 import (
 	"context"
-	logger "github.com/a-castellano/go-services/infra/logger"
 	"net"
 	"time"
+
+	logger "github.com/a-castellano/go-services/infra/logger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+const tracerName = "github.com/a-castellano/home-ip-monitor/internal/infra/nslookup"
 
 // DNSLookup retrieves dns lookup information
 // It provides DNS resolution functionality using a custom DNS server
@@ -24,6 +31,14 @@ type DNSLookup struct {
 //   - string: Resolved IP address (the first result)
 //   - error: Error if DNS lookup fails
 func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Resolve",
+		trace.WithAttributes(
+			attribute.String("operation", "Resolve"),
+			attribute.String("dns.question.name", domain),
+			attribute.String("dns.server", dnsLookup.DNSServer),
+		),
+	)
+	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Resolve")
 	var ip string
@@ -45,13 +60,23 @@ func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, 
 	// Perform DNS lookup for the domain
 	ips, err := resolver.LookupHost(ctx, domain)
 	if err != nil {
-		log.ErrorContext(ctx, "Error during domain nslookup", "domain", domain, "error", err.Error())
+		errorString := "Error during domain nslookup"
+
+		// RecordError stays here: the error is born in this span, no child
+		// records it.
+		span.RecordError(err)
+		span.SetStatus(codes.Error, errorString)
+
+		log.ErrorContext(ctx, errorString, "domain", domain, "error", err.Error())
 		return ip, err
-	} else {
-		// Return the first IP address from the results
-		ip = ips[0]
 	}
-	log.InfoContext(ctx, "domain ip retrived", "domain", domain, "ip", ip)
+	// Return the first IP address from the results
+	ip = ips[0]
+	span.SetAttributes(
+		attribute.String("dns.resolved.ip", ip),
+	)
+
+	log.InfoContext(ctx, "domain ip retrieved", "domain", domain, "ip", ip)
 
 	return ip, nil
 }

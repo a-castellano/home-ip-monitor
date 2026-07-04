@@ -218,7 +218,8 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 	if dnsRetrievalErr != nil {
 		errorString := "error resolving domain IP"
 
-		span.RecordError(dnsRetrievalErr)
+		// Status only: the error event is already recorded by the
+		// failing child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "error", dnsRetrievalErr, "domain", monitor.settings.DomainName)
