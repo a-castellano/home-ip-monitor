@@ -56,3 +56,24 @@ The Go module cache persists in `development/.gomodcache/` (git-ignored), so dep
 ## Attribution of AI-written tests
 
 Every test that Claude writes (or substantially rewrites) must carry a comment stating it was written by an AI agent, so it is always distinguishable from the tests the developer wrote by hand to learn. Add a line like `// This test was written by an AI agent (Claude).` to the test's doc comment. If Claude only extends a hand-written test, the comment must say which part was AI-written instead of claiming the whole test.
+
+## OpenTelemetry: Span Error Recording Policy
+
+This policy applies across all my projects (this file is replicated in each one).
+
+The error *event* (`span.RecordError`) is recorded exactly once, in the span closest to where the error happens: the deepest instrumented span, or the current span when the failing call has no span of its own. Every ancestor span up the chain marks `span.SetStatus(codes.Error, ...)` only — the whole branch shows as failed in the trace without duplicating the same event at every level.
+
+When auditing instrumentation, enforce the policy in both directions:
+
+- Flag a `RecordError` on an error that an instrumented callee already records (duplicate event).
+- Flag a status-only error path whose callee has no instrumented span (red span with no event explaining it).
+
+Deciding which case applies usually requires reading the callee's code, not assuming. These projects share the `go-types`/`go-services` libraries (`github.com/a-castellano/...`): when the failing call crosses into them, check the library source — cloned as sibling directories of this project, or in the module cache — to confirm whether its spans record the error at that path.
+
+## OpenTelemetry: Span Attributes at Start
+
+This convention applies across all my projects (this file is replicated in each one).
+
+Attributes whose values are known when the span is created are declared in the single `Start` call, via `trace.WithAttributes(...)` — not in a separate `span.SetAttributes` immediately after. Besides reading better, start-time attributes are visible to samplers deciding whether to keep the trace; attributes added afterwards are not.
+
+`span.SetAttributes` remains the right tool for values only known mid-flow (outcomes, flags computed during the operation). When auditing, flag a `SetAttributes` right after `Start` whose values were already available at creation time.
