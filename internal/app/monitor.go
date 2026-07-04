@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const tracerName = "github.com/a-castellano/home-ip-monitor"
@@ -51,12 +52,12 @@ func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, sto
 //	        failed notification never leaves storage ahead of the notifications.
 func (monitor Monitor) Run(ctx context.Context) error {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.Run")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("operation", "Run"),
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.Run",
+		trace.WithAttributes(
+			attribute.String("operation", "Run"),
+		),
 	)
+	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
 	log.DebugContext(ctx, "Starting monitor", "settings", monitor.settings)
@@ -125,12 +126,12 @@ func (monitor Monitor) Run(ctx context.Context) error {
 // belong to the expected ISP, so we notify and stop without touching storage.
 func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPInfo) error {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.notifyDifferentISP")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("operation", "notifyDifferentISP"),
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.notifyDifferentISP",
+		trace.WithAttributes(
+			attribute.String("operation", "notifyDifferentISP"),
+		),
 	)
+	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.notifyDifferentISP")
 	log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
@@ -158,12 +159,12 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 // live DNS record. It returns whether an update is required (and any read error).
 func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo) (bool, error) {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.updateRequired")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("operation", "updateRequired"),
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.updateRequired",
+		trace.WithAttributes(
+			attribute.String("operation", "updateRequired"),
+		),
 	)
+	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.updateRequired")
 
@@ -229,12 +230,12 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 // notifications.
 func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) error {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.applyUpdate")
-	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("operation", "applyUpdate"),
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.applyUpdate",
+		trace.WithAttributes(
+			attribute.String("operation", "applyUpdate"),
+		),
 	)
+	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.applyUpdate")
 
