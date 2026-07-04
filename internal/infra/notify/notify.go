@@ -59,6 +59,8 @@ func (brokerNotifier *BrokerNotifier) Notify(ctx context.Context, queue string, 
 	if err != nil {
 		errorString := "failed to envelope message"
 
+		// RecordError stays here: the error is born in this span, no child
+		// records it.
 		span.RecordError(err)
 		span.SetStatus(codes.Error, errorString)
 
@@ -69,7 +71,8 @@ func (brokerNotifier *BrokerNotifier) Notify(ctx context.Context, queue string, 
 	if notifyError != nil {
 		errorString := "broker failed to send message"
 
-		span.RecordError(notifyError)
+		// Status only: the error event is already recorded by the failing
+		// rabbitmq child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "queue", queue, "message", message, "error", notifyError.Error())

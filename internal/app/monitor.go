@@ -95,7 +95,8 @@ func (monitor Monitor) Run(ctx context.Context) error {
 		errNotifyDifferentISP := monitor.notifyDifferentISP(ctx, ipinfo)
 
 		if errNotifyDifferentISP != nil {
-			span.RecordError(errNotifyDifferentISP)
+			// Status only: the error event is already recorded by the
+			// failing child span.
 			span.SetStatus(codes.Error, "error notifying different ISP")
 		}
 
@@ -152,7 +153,8 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 
 		errorString := "error notifying about ISP change"
 
-		span.RecordError(notifyError)
+		// Status only: the error event is already recorded by the failing
+		// child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "error", notifyError)
@@ -183,7 +185,8 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 
 		errorString := "error retrieving current stored IP from store"
 
-		span.RecordError(retrieveIPErr)
+		// Status only: the error event is already recorded by the failing
+		// child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "error", retrieveIPErr)
@@ -256,7 +259,8 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 
 		errorString := "error notifying about Home IP change"
 
-		span.RecordError(notifyChangeError)
+		// Status only: the error event is already recorded by the failing
+		// child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "error", notifyChangeError)
@@ -270,7 +274,8 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 	if notifyDNSError != nil {
 		errorString := "error notifying DNS queue with IP to change"
 
-		span.RecordError(notifyDNSError)
+		// Status only: the error event is already recorded by the failing
+		// child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "error", notifyDNSError)
@@ -283,7 +288,8 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 	if updateIPError != nil {
 		errorString := "error updating retrieved IP in store"
 
-		span.RecordError(updateIPError)
+		// Status only: the error event is already recorded by the failing
+		// child span.
 		span.SetStatus(codes.Error, errorString)
 
 		log.ErrorContext(ctx, errorString, "error", updateIPError)
