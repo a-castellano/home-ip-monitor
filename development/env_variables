@@ -1,3 +1,5 @@
+export ENABLE_TELEMETRY=true
+
 export APP_NAME="home-ip-monitor"
 export SLOG_LEVEL="Debug"
 export SLOG_FORMAT="JSON"
