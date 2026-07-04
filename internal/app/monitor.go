@@ -78,7 +78,8 @@ func (monitor Monitor) Run(ctx context.Context) error {
 	if getIPInfoErr != nil {
 
 		errorString := "error retrieving ipinfo data"
-		span.RecordError(getIPInfoErr)
+		// Status only: the error event is already recorded by the
+		// failing child span.
 		span.SetStatus(codes.Error, errorString)
 		log.ErrorContext(ctx, errorString, "error", getIPInfoErr)
 

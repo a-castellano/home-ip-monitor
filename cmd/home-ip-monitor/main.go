@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	logger "github.com/a-castellano/go-services/infra/logger"
 	opentelemetry "github.com/a-castellano/go-services/infra/opentelemetry"
 	rabbitmq "github.com/a-castellano/go-services/infra/rabbitmq"
@@ -55,7 +57,8 @@ func run(ctx context.Context) error {
 	log.DebugContext(ctx, "Defining http client use by ipinfo package")
 
 	httpClient := http.Client{
-		Timeout: time.Second * 5,
+		Timeout:   time.Second * 5,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
 	log.DebugContext(ctx, "Defining ipinfo requester")
