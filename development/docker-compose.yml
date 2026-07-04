@@ -8,7 +8,7 @@ services:
     image: harbor.windmaker.net/limani/base_golang_1_26
     volumes:
       - ..:/app # Mount the project directory into the container
-      - ./gomodcache:/root/go/pkg/mod # Persist Go module cache locally
+      - ./.gomodcache:/root/go/pkg/mod # Persist Go module cache locally (dot-prefixed so Go package patterns like ./... never walk into it)
     working_dir: /app
     command: tail -f /dev/null # Keep container running
     environment:

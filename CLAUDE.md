@@ -46,7 +46,7 @@ podman compose -f development/docker-compose.yml exec golang make test
 podman compose -f development/docker-compose.yml exec golang go vet ./...
 ```
 
-The Go module cache persists in `development/gomodcache/` (git-ignored), so dependencies are not re-downloaded each run.
+The Go module cache persists in `development/.gomodcache/` (git-ignored), so dependencies are not re-downloaded each run. The dot prefix is deliberate: Go package patterns (`./...`) skip dot-directories, so the in-tree cache is never walked by `go test`, `go get` or `go mod tidy`.
 
 ## Exceptions (when explicitly requested)
 
