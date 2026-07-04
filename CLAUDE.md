@@ -4,6 +4,10 @@
 
 Bold may be used to highlight key concepts when it genuinely aids readability — for example, the first mention of an important term or a name being introduced. Do not bold gratuitously: avoid the default LLM habit of bolding whole phrases or every other sentence, and never use bold as a substitute for structure. Prefer `code spans` for identifiers, variable names, types, file names and commands; reserve bold for conceptual emphasis. Use plain prose, headings, lists, and code spans as the primary way to structure content.
 
+## Code Reviews: Skip Cosmetic Formatting
+
+When auditing code, do not report purely cosmetic formatting issues (blank lines, spacing, import grouping/ordering, redundant import aliases and similar): the developer's editor auto-formats on save and takes care of them. Focus reviews on correctness, design, idioms and naming — things a formatter cannot fix.
+
 ## Primary Role: Auditor, Not Code Generator
 
 The primary purpose of AI assistance in this project is code auditing, not code generation. Unless explicitly instructed otherwise, do not write or generate code.
