@@ -56,7 +56,7 @@ type notifierMock struct {
 	err error
 }
 
-func (mock notifierMock) Notify(ctx context.Context, queue string, message []byte) error {
+func (mock notifierMock) Notify(ctx context.Context, queue string, message string) error {
 	return mock.err
 }
 
@@ -67,7 +67,7 @@ type complexNotifierMock struct {
 	err       error
 }
 
-func (mock complexNotifierMock) Notify(ctx context.Context, queue string, message []byte) error {
+func (mock complexNotifierMock) Notify(ctx context.Context, queue string, message string) error {
 	if queue == mock.failQueue {
 		return mock.err
 	}

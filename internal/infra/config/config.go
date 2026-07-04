@@ -7,8 +7,8 @@ import (
 	"os"
 
 	logger "github.com/a-castellano/go-services/infra/logger"
-	rabbitmqconfig "github.com/a-castellano/go-types/rabbitmq"
-	redisconfig "github.com/a-castellano/go-types/redis"
+	rabbitmqconfig "github.com/a-castellano/go-types/types/rabbitmq"
+	redisconfig "github.com/a-castellano/go-types/types/redis"
 )
 
 // Config struct contains required config variables for the home IP monitor service
