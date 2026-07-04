@@ -52,3 +52,7 @@ The Go module cache persists in `development/.gomodcache/` (git-ignored), so dep
 
 - Documentation and comments: you may be asked to review existing docs or generate documentation and inline code comments.
 - Code generation: occasionally the developer will ask you to generate specific code. Do so only when directly requested.
+
+## Attribution of AI-written tests
+
+Every test that Claude writes (or substantially rewrites) must carry a comment stating it was written by an AI agent, so it is always distinguishable from the tests the developer wrote by hand to learn. Add a line like `// This test was written by an AI agent (Claude).` to the test's doc comment. If Claude only extends a hand-written test, the comment must say which part was AI-written instead of claiming the whole test.
