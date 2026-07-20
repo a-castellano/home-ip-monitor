@@ -104,6 +104,11 @@ func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver do
 //	        failed notification never leaves storage ahead of the notifications.
 func (monitor Monitor) Run(ctx context.Context) error {
 
+	// The closure is required: a plain deferred Record would evaluate
+	// time.Since immediately. It reads the ctx reassigned by Start below, so
+	// the exemplar links to Monitor.Run — the SpanContext survives span.End,
+	// which runs first (LIFO). Renaming the span's ctx would silently break
+	// that link.
 	start := time.Now()
 	defer func() {
 		monitor.runDuration.Record(ctx, time.Since(start).Seconds())
