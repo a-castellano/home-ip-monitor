@@ -41,7 +41,7 @@ func (store *Store) StoredIP(ctx context.Context) (string, bool, error) {
 	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "StoredIP")
-	log.DebugContext(ctx, "Retrieving stored IP from store")
+	log.DebugContext(ctx, "retrieving stored IP from store")
 
 	value, found, err := store.Database.ReadString(ctx, "storedIP")
 
@@ -79,7 +79,7 @@ func (store *Store) SaveIP(ctx context.Context, ip string) error {
 	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "SaveIP")
-	log.DebugContext(ctx, "Storing required IP into store", "ip", ip)
+	log.DebugContext(ctx, "storing required IP into store", "ip", ip)
 
 	writeError := store.Database.WriteString(ctx, "storedIP", ip, 0)
 	if writeError != nil {

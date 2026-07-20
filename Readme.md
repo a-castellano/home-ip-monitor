@@ -153,6 +153,14 @@ Logging is handled through [go-types `slog`](https://git.windmaker.net/a-castell
 | `SLOG_FORMAT`     | Log format: `JSON` or `plain`                         | `JSON`           |
 | `SLOG_ADD_SOURCE` | Whether to add `file:line` to log entries             | `true`           |
 
+#### Telemetry Configuration
+
+OpenTelemetry configuration is handled through [go-types `opentelemetry`](https://git.windmaker.net/a-castellano/go-types). See the [Telemetry](#telemetry) section for what gets emitted.
+
+| Variable           | Description                                              | Default |
+| ------------------ | -------------------------------------------------------- | ------- |
+| `ENABLE_TELEMETRY` | Enables traces and metrics when set to `"true"` (opt-in) | `false` |
+
 #### Redis Configuration
 
 See [go-types Redis documentation](https://git.windmaker.net/a-castellano/go-types/-/tree/master/redis) for complete Redis configuration options.
@@ -264,13 +272,42 @@ The service uses structured logging through [`log/slog`](https://pkg.go.dev/log/
 Each entry carries an `operation` attribute (e.g. `NewConfig`, `Monitor.Run`) plus structured fields. Example output with `SLOG_FORMAT="JSON"` and `SLOG_LEVEL="Debug"`:
 
 ```json
-{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Loading config"}
-{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Domain name has been set","operation":"NewConfig","domain":"home.example.com"}
-{"time":"2026-06-24T10:00:00Z","level":"INFO","msg":"Initiating required services"}
-{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Validating that ipinfo provider is the expected provider","operation":"Monitor.Run","currentProvider":"DIGI","expectedProvider":"DIGI","currentIP":"192.168.1.100"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"loading config"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"domain name has been set","operation":"NewConfig","domain":"home.example.com"}
+{"time":"2026-06-24T10:00:00Z","level":"INFO","msg":"initiating required services"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"validating that ipinfo provider is the expected provider","operation":"Monitor.Run","currentProvider":"DIGI","expectedProvider":"DIGI","currentIP":"192.168.1.100"}
 {"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"IPs differ, stored IP must be updated","operation":"Monitor.Run","currentIP":"192.168.1.100","storedIP":"192.168.1.99"}
-{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"Updating stored IP","operation":"Monitor.Run","currentIP":"192.168.1.100"}
+{"time":"2026-06-24T10:00:00Z","level":"DEBUG","msg":"updating stored IP","operation":"Monitor.Run","currentIP":"192.168.1.100"}
 ```
+
+### Telemetry
+
+The service is instrumented with OpenTelemetry, wired through
+[go-services `opentelemetry`](https://git.windmaker.net/a-castellano/go-services).
+Telemetry is opt-in: it activates only when `ENABLE_TELEMETRY="true"` is set
+(`APP_NAME` becomes the `service.name` resource attribute; `OTEL_SERVICE_NAME`
+must not be set). When disabled, all instrumentation is a no-op and the service
+behaves exactly as before.
+
+Each execution produces one trace rooted at the `Monitor.Run` span, with child
+spans per business step and per adapter call (HTTP request to ipinfo.io, DNS
+resolution, Redis reads/writes, RabbitMQ publishes). Message publishes carry the
+trace context to the consumer services.
+
+The service also records the following metrics:
+
+| Metric                       | Type      | Unit       | Description                 |
+| ---------------------------- | --------- | ---------- | --------------------------- |
+| `homeipmonitor.runs`         | Counter   | `{run}`    | Number of monitor runs      |
+| `homeipmonitor.ip.changes`   | Counter   | `{change}` | Number of applied IP changes |
+| `homeipmonitor.run.duration` | Histogram | `s`        | Duration of the monitor run |
+
+`homeipmonitor.ip.changes` counts changes that were fully applied (both queues
+notified and the new IP persisted); a detected change whose update fails is not
+counted. The instrumented HTTP client additionally emits the standard
+`http.client.*` metrics via `otelhttp`. Traces and metrics are currently
+exported to standard output; metric data points carry exemplars linking them to
+the trace that produced them.
 
 ## Development
 

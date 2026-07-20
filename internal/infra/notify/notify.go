@@ -50,7 +50,7 @@ func (brokerNotifier *BrokerNotifier) Notify(ctx context.Context, queue string, 
 	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Notify")
-	log.DebugContext(ctx, "Notifying message to queue", "queue", queue, "message", message)
+	log.DebugContext(ctx, "notifying message to queue", "queue", queue, "message", message)
 
 	encodedMessage := []byte(message)
 	envelope := opentelemetry.Inject(ctx, encodedMessage)

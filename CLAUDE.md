@@ -57,6 +57,20 @@ The Go module cache persists in `development/.gomodcache/` (git-ignored), so dep
 
 Every test that Claude writes (or substantially rewrites) must carry a comment stating it was written by an AI agent, so it is always distinguishable from the tests the developer wrote by hand to learn. Add a line like `// This test was written by an AI agent (Claude).` to the test's doc comment. If Claude only extends a hand-written test, the comment must say which part was AI-written instead of claiming the whole test.
 
+## Log Message Style
+
+This convention applies across all my projects (this file is replicated in each one).
+
+Log messages (the message string passed to the logger, not code comments) follow these rules:
+
+- They start in lowercase, with one exception: when the first word is an acronym or a product/proper name (`ISP name has been set`, `DNS server has been set`, `IPInfo request succeeded`, `Redis config has been set`), it keeps its canonical casing — never decapitalize an acronym.
+- They never end with a period.
+- Acronyms and product names keep their canonical casing anywhere in the message: `DNS`, `HTTP`, `IP`, `ISP`, `Redis`, `RabbitMQ`, `IPInfo`. Names that refer to this project's own packages (`ipinfo`, `nslookup`, `messagebroker`, `memorydatabase`) stay lowercase, since they name the package, not a product.
+
+Strings that are not log messages — notification payloads sent to queues, error strings for `errors.New`/`fmt.Errorf` (which follow the Go convention: lowercase, no period) — are out of scope of the first rule's exception list but must not be confused with logs when auditing.
+
+When auditing code, flag log messages that deviate from these rules.
+
 ## OpenTelemetry: Span Error Recording Policy
 
 This policy applies across all my projects (this file is replicated in each one).

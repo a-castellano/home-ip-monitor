@@ -43,7 +43,7 @@ func (dnsLookup DNSLookup) Resolve(ctx context.Context, domain string) (string, 
 	log := logger.FromContext(ctx).With("operation", "Resolve")
 	var ip string
 
-	log.DebugContext(ctx, "Creating dialer and resolver")
+	log.DebugContext(ctx, "creating dialer and resolver")
 	// Create dialer with timeout for DNS connections
 	dialer := &net.Dialer{
 		Timeout: time.Second * 5,
