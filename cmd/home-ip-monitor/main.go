@@ -92,7 +92,7 @@ func run(ctx context.Context) error {
 
 	monitorSettings := app.Settings{ISPName: appConfig.ISPName, DomainName: appConfig.DomainName, NotifyQueue: appConfig.NotifyQueue, UpdateQueue: appConfig.UpdateQueue}
 
-	monitor := app.NewMonitor(requester, nsLookup, &store, &notifier, monitorSettings)
+	monitor := app.NewMonitor(ctx, requester, nsLookup, &store, &notifier, monitorSettings)
 	// Start the monitoring process
 	if monitorErr := monitor.Run(ctx); monitorErr != nil {
 		log.ErrorContext(ctx, "Error running monitor", "error", monitorErr)

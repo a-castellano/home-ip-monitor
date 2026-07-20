@@ -9,10 +9,11 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const tracerName = "github.com/a-castellano/home-ip-monitor"
+const componentName = "github.com/a-castellano/home-ip-monitor"
 
 // Business span attribute names, shared by the spans below.
 const (
@@ -40,12 +41,24 @@ type Monitor struct {
 	store    domain.IPStore
 	notifier domain.Notifier
 	settings Settings
+	runs     metric.Int64Counter
 }
 
 // NewMonitor builds a Monitor from its injected ports and settings. Since every
 // field is unexported, this constructor is the only way to create a Monitor.
-func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, storage domain.IPStore, notifier domain.Notifier, settings Settings) Monitor {
-	return Monitor{provider: provider, resolver: resolver, store: storage, notifier: notifier, settings: settings}
+func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver domain.DNSResolver, storage domain.IPStore, notifier domain.Notifier, settings Settings) Monitor {
+	log := logger.FromContext(ctx).With("operation", "Monitor.NewMonitor")
+	log.DebugContext(ctx, "creating new monitor")
+	runs, meterErr := otel.Meter(componentName).Int64Counter(
+		"homeipmonitor.runs",
+		metric.WithDescription("Number of monitor runs."),
+		metric.WithUnit("{run}"),
+	)
+	if meterErr != nil {
+		log.ErrorContext(ctx, "cannot register homeipmonitor.runs otel meter", "error", meterErr)
+	}
+
+	return Monitor{provider: provider, resolver: resolver, store: storage, notifier: notifier, settings: settings, runs: runs}
 }
 
 // Run executes the monitoring flow:
@@ -60,17 +73,19 @@ func NewMonitor(provider domain.IPInfoProvider, resolver domain.DNSResolver, sto
 //	        failed notification never leaves storage ahead of the notifications.
 func (monitor Monitor) Run(ctx context.Context) error {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.Run",
+	ctx, span := otel.Tracer(componentName).Start(ctx, "Monitor.Run",
 		trace.WithAttributes(
 			attribute.String("operation", "Run"),
 		),
 	)
 	defer span.End()
 
-	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
-	log.DebugContext(ctx, "Starting monitor", "settings", monitor.settings)
+	monitor.runs.Add(ctx, 1)
 
-	log.DebugContext(ctx, "Retrieving ipinfo data")
+	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
+	log.DebugContext(ctx, "starting monitor", "settings", monitor.settings)
+
+	log.DebugContext(ctx, "retrieving ipinfo data")
 
 	// Rule 1: fetch the current public IP info.
 	ipinfo, getIPInfoErr := monitor.provider.GetIPInfo(ctx)
@@ -136,7 +151,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 // belong to the expected ISP, so we notify and stop without touching storage.
 func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPInfo) error {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.notifyDifferentISP",
+	ctx, span := otel.Tracer(componentName).Start(ctx, "Monitor.notifyDifferentISP",
 		trace.WithAttributes(
 			attribute.String("operation", "notifyDifferentISP"),
 		),
@@ -170,7 +185,7 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 // live DNS record. It returns whether an update is required (and any read error).
 func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo) (bool, error) {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.updateRequired",
+	ctx, span := otel.Tracer(componentName).Start(ctx, "Monitor.updateRequired",
 		trace.WithAttributes(
 			attribute.String("operation", "updateRequired"),
 		),
@@ -243,7 +258,7 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 // notifications.
 func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) error {
 
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "Monitor.applyUpdate",
+	ctx, span := otel.Tracer(componentName).Start(ctx, "Monitor.applyUpdate",
 		trace.WithAttributes(
 			attribute.String("operation", "applyUpdate"),
 		),

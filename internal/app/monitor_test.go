@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	domain "github.com/a-castellano/home-ip-monitor/internal/domain"
+	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // The mocks below are hand-written fakes for the four domain ports. They return
@@ -90,9 +93,9 @@ func TestGetIPInfoError(t *testing.T) {
 
 	settings := Settings{ISPName: "Example", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -118,9 +121,9 @@ func TestDifferentISPNotifyError(t *testing.T) {
 
 	settings := Settings{ISPName: "Different", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -147,9 +150,9 @@ func TestDifferentISP(t *testing.T) {
 
 	settings := Settings{ISPName: "Different", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -175,9 +178,9 @@ func TestStoredIPReadError(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -206,9 +209,9 @@ func TestStoredIPMatchesButDNSDiffersTriggersUpdate(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -235,9 +238,9 @@ func TestStoredIPDiffersTriggersUpdate(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -263,9 +266,9 @@ func TestNoStoredIPTriggersUpdate(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -291,9 +294,9 @@ func TestStoredIPMatchesDNSResolveError(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -319,9 +322,9 @@ func TestStoredIPAndDNSMatchNoUpdate(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -347,9 +350,9 @@ func TestUpdateNotifyChangeError(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -376,9 +379,9 @@ func TestUpdateNotifyUpdateQueueError(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
@@ -404,14 +407,93 @@ func TestUpdateSaveIPError(t *testing.T) {
 
 	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
 
-	monitor := NewMonitor(ipinfo, resolver, store, notifier, settings)
-
 	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
 
 	err := monitor.Run(ctx)
 
 	if err == nil {
 		t.Errorf("TestUpdateSaveIPError should fail, because store fails when IP is saved")
+	}
+
+}
+
+// TestRunsCounter asserts that a single Run records exactly one increment on
+// the homeipmonitor.runs counter. The counter is created in NewMonitor against
+// the global MeterProvider, so the test installs an SDK provider backed by a
+// ManualReader as the global one (mirroring how notify's tests install a
+// recorder-backed global TracerProvider) and restores the previous provider on
+// cleanup so later tests keep their no-op default.
+// This test was written by an AI agent (Claude).
+func TestRunsCounter(t *testing.T) {
+
+	previousMeterProvider := otel.GetMeterProvider()
+	meterReader := sdkmetric.NewManualReader()
+	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(meterReader)))
+	t.Cleanup(func() { otel.SetMeterProvider(previousMeterProvider) })
+
+	// Happy no-update path: stored IP and DNS both match the current IP.
+	ipinfoData := domain.IPInfo{IP: "1.1.1.1", OrgName: "Test"}
+	ipinfo := ipInfoMock{ipInfoData: ipinfoData, err: nil}
+
+	resolver := dnsResolverMock{result: "1.1.1.1", err: nil}
+
+	store := ipStoreMock{storedIPValue: "1.1.1.1", storeFound: true, storeError: nil, saveError: nil}
+
+	notifier := notifierMock{err: nil}
+
+	settings := Settings{ISPName: "Test", DomainName: "test.windmaker.net", NotifyQueue: "notify", UpdateQueue: "update"}
+
+	ctx := context.Background()
+
+	monitor := NewMonitor(ctx, ipinfo, resolver, store, notifier, settings)
+
+	if err := monitor.Run(ctx); err != nil {
+		t.Fatalf("TestRunsCounter should not fail, error was %q", err.Error())
+	}
+
+	// Until Collect is called, Add has only updated the SDK's internal
+	// aggregation state; the ManualReader pulls it into ResourceMetrics.
+	var collectedMetrics metricdata.ResourceMetrics
+	if err := meterReader.Collect(ctx, &collectedMetrics); err != nil {
+		t.Fatalf("Collect should not fail, error was %q", err.Error())
+	}
+
+	if len(collectedMetrics.ScopeMetrics) != 1 {
+		t.Fatalf("expected 1 scope, got %d", len(collectedMetrics.ScopeMetrics))
+	}
+	scopeMetrics := collectedMetrics.ScopeMetrics[0]
+	if scopeMetrics.Scope.Name != componentName {
+		t.Errorf("expected scope name %q, got %q", componentName, scopeMetrics.Scope.Name)
+	}
+	if len(scopeMetrics.Metrics) != 1 {
+		t.Fatalf("expected 1 metric, got %d", len(scopeMetrics.Metrics))
+	}
+
+	recordedMetric := scopeMetrics.Metrics[0]
+	if recordedMetric.Name != "homeipmonitor.runs" {
+		t.Errorf("expected metric name %q, got %q", "homeipmonitor.runs", recordedMetric.Name)
+	}
+	if recordedMetric.Unit != "{run}" {
+		t.Errorf("expected unit %q, got %q", "{run}", recordedMetric.Unit)
+	}
+
+	// A counter aggregates as a monotonic Sum[int64]. Temporality is not
+	// asserted: it is an export-pipeline concern (the monitor's delta
+	// preference lives in the OTLP exporter's env var, not in this code).
+	sum, ok := recordedMetric.Data.(metricdata.Sum[int64])
+	if !ok {
+		t.Fatalf("expected data of type Sum[int64], got %T", recordedMetric.Data)
+	}
+	if !sum.IsMonotonic {
+		t.Error("expected a monotonic sum")
+	}
+	if len(sum.DataPoints) != 1 {
+		t.Fatalf("expected 1 data point, got %d", len(sum.DataPoints))
+	}
+	if sum.DataPoints[0].Value != 1 {
+		t.Errorf("expected counter value 1, got %d", sum.DataPoints[0].Value)
 	}
 
 }
