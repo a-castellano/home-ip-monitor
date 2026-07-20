@@ -54,7 +54,7 @@ func (ipinfoData ipinfoData) getOrgName(ctx context.Context) (domain.IPInfo, err
 
 	ipinfo = domain.IPInfo{IP: ipinfoData.IP, OrgName: orgName}
 
-	log.InfoContext(ctx, "Retrieve IPInfo data", "data", ipinfo)
+	log.InfoContext(ctx, "retrieved IPInfo data", "data", ipinfo)
 	return ipinfo, nil
 }
 
@@ -88,7 +88,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "GetIPInfo")
-	log.DebugContext(ctx, "Creating a request to ipinfo", "url", ipInfoURL)
+	log.DebugContext(ctx, "creating a request to ipinfo", "url", ipInfoURL)
 	req, reqErr := http.NewRequestWithContext(ctx, "GET", ipInfoURL, nil)
 
 	if reqErr != nil {
@@ -103,7 +103,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 		return ipinfo, reqErr
 	}
 
-	log.DebugContext(ctx, "Executing request to ipinfo", "url", ipInfoURL)
+	log.DebugContext(ctx, "executing request to ipinfo", "url", ipInfoURL)
 
 	response, responseErr := requester.HttpClient.Do(req)
 
@@ -133,7 +133,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 		return ipinfo, statusCodeError
 	}
 
-	log.DebugContext(ctx, "Reading body response")
+	log.DebugContext(ctx, "reading body response")
 	body, bodyErr := io.ReadAll(response.Body)
 	if bodyErr != nil {
 
@@ -171,7 +171,7 @@ func (requester IPInfoRequester) GetIPInfo(ctx context.Context) (domain.IPInfo, 
 
 	}
 
-	log.DebugContext(ctx, "IPInfo request succeded", "retrievedInfo", retrievedInfo)
+	log.DebugContext(ctx, "IPInfo request succeeded", "retrievedInfo", retrievedInfo)
 	ipinfo, getOrgNameErr := retrievedInfo.getOrgName(ctx)
 
 	if getOrgNameErr != nil {
