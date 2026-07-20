@@ -37,12 +37,13 @@ type Settings struct {
 // (interfaces), so it has zero knowledge of HTTP, Redis or RabbitMQ. It also
 // carries its own metric instruments, created once in NewMonitor.
 type Monitor struct {
-	provider domain.IPInfoProvider
-	resolver domain.DNSResolver
-	store    domain.IPStore
-	notifier domain.Notifier
-	settings Settings
-	runs     metric.Int64Counter
+	provider  domain.IPInfoProvider
+	resolver  domain.DNSResolver
+	store     domain.IPStore
+	notifier  domain.Notifier
+	settings  Settings
+	runs      metric.Int64Counter
+	ipChanges metric.Int64Counter
 }
 
 // NewMonitor builds a Monitor from its injected ports and settings. Since every
@@ -55,16 +56,29 @@ type Monitor struct {
 func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver domain.DNSResolver, storage domain.IPStore, notifier domain.Notifier, settings Settings) Monitor {
 	log := logger.FromContext(ctx).With("operation", "Monitor.NewMonitor")
 	log.DebugContext(ctx, "creating new monitor")
-	runs, meterErr := otel.Meter(componentName).Int64Counter(
+
+	otelMeter := otel.Meter(componentName)
+
+	// define metrics
+	runs, runsMeterErr := otelMeter.Int64Counter(
 		"homeipmonitor.runs",
 		metric.WithDescription("Number of monitor runs"),
 		metric.WithUnit("{run}"),
 	)
-	if meterErr != nil {
-		log.ErrorContext(ctx, "cannot register homeipmonitor.runs otel meter", "error", meterErr)
+	if runsMeterErr != nil {
+		log.ErrorContext(ctx, "cannot register homeipmonitor.runs otel meter", "error", runsMeterErr)
 	}
 
-	return Monitor{provider: provider, resolver: resolver, store: storage, notifier: notifier, settings: settings, runs: runs}
+	ipChanges, ipChangesMeterErr := otelMeter.Int64Counter(
+		"homeipmonitor.ip.changes",
+		metric.WithDescription("Number of applied IP changes"),
+		metric.WithUnit("{change}"),
+	)
+	if ipChangesMeterErr != nil {
+		log.ErrorContext(ctx, "cannot register homeipmonitor.ip.changes otel meter", "error", ipChangesMeterErr)
+	}
+
+	return Monitor{provider: provider, resolver: resolver, store: storage, notifier: notifier, settings: settings, runs: runs, ipChanges: ipChanges}
 }
 
 // Run executes the monitoring flow:
@@ -86,6 +100,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 	)
 	defer span.End()
 
+	// Increase runs metric
 	monitor.runs.Add(ctx, 1)
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.Run")
@@ -318,6 +333,8 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 		log.ErrorContext(ctx, errorString, "error", updateIPError)
 		return updateIPError
 	}
+	// Increase changes metric
+	monitor.ipChanges.Add(ctx, 1)
 
 	return nil
 }
