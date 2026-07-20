@@ -50,7 +50,7 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	if config.DomainName == "no_set" {
 		return nil, errors.New("env variable DOMAIN_NAME must be set")
 	}
-	log.DebugContext(ctx, "Domain name has been set", "domain", config.DomainName)
+	log.DebugContext(ctx, "domain name has been set", "domain", config.DomainName)
 
 	// Retrieve ISPName from environment
 	config.ISPName = cmp.Or(os.Getenv("ISP_NAME"), "no_set")
@@ -65,32 +65,32 @@ func NewConfig(ctx context.Context) (*Config, error) {
 
 	if config.DNSServer == "no_set" {
 		dnsError := errors.New("env variable DNS_SERVER must be set")
-		log.ErrorContext(ctx, "Error configuring dns server", "error", dnsError)
+		log.ErrorContext(ctx, "error configuring DNS server", "error", dnsError)
 		return nil, dnsError
 	}
-	log.DebugContext(ctx, "DNS Server has been set", "dns", config.DNSServer)
+	log.DebugContext(ctx, "DNS server has been set", "dns", config.DNSServer)
 
 	// Retrieve UpdateQueue name, default is home-ip-monitor-updates
 	config.UpdateQueue = cmp.Or(os.Getenv("UPDATE_QUEUE_NAME"), "home-ip-monitor-updates")
-	log.DebugContext(ctx, "Update queue name has been set", "updatequeue", config.UpdateQueue)
+	log.DebugContext(ctx, "update queue name has been set", "updatequeue", config.UpdateQueue)
 
 	// Retrieve NotifyQueue name, default is home-ip-monitor-notifications
 	config.NotifyQueue = cmp.Or(os.Getenv("NOTIFY_QUEUE_NAME"), "home-ip-monitor-notifications")
-	log.DebugContext(ctx, "Notify queue name has been set", "notifyqueue", config.NotifyQueue)
+	log.DebugContext(ctx, "notify queue name has been set", "notifyqueue", config.NotifyQueue)
 
 	// Set RedisConfig and RabbitmqConfig
-	log.DebugContext(ctx, "Setting Redis config")
+	log.DebugContext(ctx, "setting Redis config")
 	config.RedisConfig, redisConfigErr = redisconfig.NewConfig()
 	if redisConfigErr != nil {
-		log.ErrorContext(ctx, "Error setting redis config", "error", redisConfigErr)
+		log.ErrorContext(ctx, "error setting Redis config", "error", redisConfigErr)
 		return nil, redisConfigErr
 	}
 	log.DebugContext(ctx, "Redis config has been set", "config", config.RedisConfig)
 
-	log.DebugContext(ctx, "Setting RabbitMQ Config")
+	log.DebugContext(ctx, "setting RabbitMQ config")
 	config.RabbitmqConfig, rabbitmqConfigErr = rabbitmqconfig.NewConfig()
 	if rabbitmqConfigErr != nil {
-		log.ErrorContext(ctx, "Error setting RabbitMQ config", "error", rabbitmqConfigErr)
+		log.ErrorContext(ctx, "error setting RabbitMQ config", "error", rabbitmqConfigErr)
 		return nil, rabbitmqConfigErr
 	}
 	log.DebugContext(ctx, "RabbitMQ config has been set", "config", config.RabbitmqConfig)

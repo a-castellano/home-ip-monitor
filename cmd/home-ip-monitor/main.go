@@ -27,7 +27,7 @@ import (
 
 func run(ctx context.Context) error {
 	log := logger.FromContext(ctx).With("operation", "main.run")
-	log.DebugContext(ctx, "Loading config")
+	log.DebugContext(ctx, "loading config")
 
 	otelConfig, otelConfigErr := otelconfig.NewConfig()
 	if otelConfigErr != nil {
@@ -49,45 +49,45 @@ func run(ctx context.Context) error {
 	appConfig, configErr := config.NewConfig(ctx)
 
 	if configErr != nil {
-		log.ErrorContext(ctx, "Error loading app config", "error", configErr)
+		log.ErrorContext(ctx, "error loading app config", "error", configErr)
 		return configErr
 	}
 
-	log.InfoContext(ctx, "Initiating required services")
-	log.DebugContext(ctx, "Defining http client use by ipinfo package")
+	log.InfoContext(ctx, "initiating required services")
+	log.DebugContext(ctx, "defining HTTP client used by ipinfo package")
 
 	httpClient := http.Client{
 		Timeout:   time.Second * 5,
 		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
-	log.DebugContext(ctx, "Defining ipinfo requester")
+	log.DebugContext(ctx, "defining ipinfo requester")
 	requester := ipinfodata.IPInfoRequester{HttpClient: &httpClient}
 
-	log.DebugContext(ctx, "Defining nslookup resolver")
+	log.DebugContext(ctx, "defining nslookup resolver")
 	nsLookup := nslookup.DNSLookup{DNSServer: appConfig.DNSServer}
 
-	log.DebugContext(ctx, "Defining rabbitmq instance")
+	log.DebugContext(ctx, "defining RabbitMQ instance")
 	rabbitmqClient := rabbitmq.NewRabbitmqClient(appConfig.RabbitmqConfig)
-	log.DebugContext(ctx, "Defining messagebroker instance")
+	log.DebugContext(ctx, "defining messagebroker instance")
 	messageBroker := messagebroker.MessageBroker{Client: rabbitmqClient}
 
-	log.DebugContext(ctx, "Defining notifier instance")
+	log.DebugContext(ctx, "defining notifier instance")
 	notifier := notify.BrokerNotifier{Broker: messageBroker}
 
-	log.DebugContext(ctx, "Defining redis instance")
+	log.DebugContext(ctx, "defining Redis instance")
 	redisClient := redis.NewRedisClient(appConfig.RedisConfig)
 
-	log.DebugContext(ctx, "Initiating redis instance")
+	log.DebugContext(ctx, "initiating Redis instance")
 	if redisErr := redisClient.Initiate(ctx); redisErr != nil {
-		log.ErrorContext(ctx, "Error initiating redis instance", "error", redisErr)
+		log.ErrorContext(ctx, "error initiating Redis instance", "error", redisErr)
 		return redisErr
 	}
 
-	log.DebugContext(ctx, "Defining memorydatabase instance")
+	log.DebugContext(ctx, "defining memorydatabase instance")
 	memoryDatabase := memorydatabase.NewMemoryDatabase(&redisClient)
 
-	log.DebugContext(ctx, "Defining store instance")
+	log.DebugContext(ctx, "defining store instance")
 	store := storage.Store{Database: memoryDatabase}
 
 	monitorSettings := app.Settings{ISPName: appConfig.ISPName, DomainName: appConfig.DomainName, NotifyQueue: appConfig.NotifyQueue, UpdateQueue: appConfig.UpdateQueue}
@@ -95,7 +95,7 @@ func run(ctx context.Context) error {
 	monitor := app.NewMonitor(ctx, requester, nsLookup, &store, &notifier, monitorSettings)
 	// Start the monitoring process
 	if monitorErr := monitor.Run(ctx); monitorErr != nil {
-		log.ErrorContext(ctx, "Error running monitor", "error", monitorErr)
+		log.ErrorContext(ctx, "error running monitor", "error", monitorErr)
 		return monitorErr
 	}
 

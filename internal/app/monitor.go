@@ -34,7 +34,8 @@ type Settings struct {
 }
 
 // Monitor is the application use case. All its dependencies are domain ports
-// (interfaces), so it has zero knowledge of HTTP, Redis or RabbitMQ.
+// (interfaces), so it has zero knowledge of HTTP, Redis or RabbitMQ. It also
+// carries its own metric instruments, created once in NewMonitor.
 type Monitor struct {
 	provider domain.IPInfoProvider
 	resolver domain.DNSResolver
@@ -46,12 +47,17 @@ type Monitor struct {
 
 // NewMonitor builds a Monitor from its injected ports and settings. Since every
 // field is unexported, this constructor is the only way to create a Monitor.
+// It also creates the Monitor's metric instruments against the global
+// MeterProvider; the context is only used to reach the logger during
+// construction, it is not stored. A failed instrument registration is logged
+// and otherwise ignored — the returned instrument is usable anyway, and
+// telemetry must never prevent the monitor from being built.
 func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver domain.DNSResolver, storage domain.IPStore, notifier domain.Notifier, settings Settings) Monitor {
 	log := logger.FromContext(ctx).With("operation", "Monitor.NewMonitor")
 	log.DebugContext(ctx, "creating new monitor")
 	runs, meterErr := otel.Meter(componentName).Int64Counter(
 		"homeipmonitor.runs",
-		metric.WithDescription("Number of monitor runs."),
+		metric.WithDescription("Number of monitor runs"),
 		metric.WithUnit("{run}"),
 	)
 	if meterErr != nil {
@@ -101,7 +107,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 		return getIPInfoErr
 	}
 
-	log.DebugContext(ctx, "Validating that ipinfo provider is the expected provider", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+	log.DebugContext(ctx, "validating that ipinfo provider is the expected provider", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	// Rule 1: the IP must belong to the expected isp. If not, notify and stop:
 	// we do not update storage because this IP is not the home connection.
@@ -120,7 +126,7 @@ func (monitor Monitor) Run(ctx context.Context) error {
 	}
 	span.SetAttributes(attribute.Bool(attributeISPDiffers, false))
 
-	log.DebugContext(ctx, "Current provider is the expected provider, checking if IP has changed by retrieving the current stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+	log.DebugContext(ctx, "current provider is the expected provider, checking if IP has changed by retrieving the current stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	// Rules 2 & 3: decide whether the stored IP needs updating.
 	updateIP, updateRequiredErr := monitor.updateRequired(ctx, ipinfo)
@@ -159,7 +165,7 @@ func (monitor Monitor) notifyDifferentISP(ctx context.Context, ipinfo domain.IPI
 	defer span.End()
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.notifyDifferentISP")
-	log.DebugContext(ctx, "Current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+	log.DebugContext(ctx, "current provider is not the expected provider, notifying only", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	notifyMessage := fmt.Sprintf("Read IP %s belongs to %s ISP, it seems that home is not using main ISP %s.", ipinfo.IP, ipinfo.OrgName, monitor.settings.ISPName)
 
@@ -212,12 +218,12 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 
 	if !ipFound {
 		span.SetAttributes(attribute.Bool(attributeIPFound, false))
-		log.DebugContext(ctx, "There is no stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+		log.DebugContext(ctx, "there is no stored IP, update with current value", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 		return true, nil
 	}
 	span.SetAttributes(attribute.Bool(attributeIPFound, true))
 
-	log.DebugContext(ctx, "There is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
+	log.DebugContext(ctx, "there is already an IP stored, compare with current IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
 	if storedIP != ipinfo.IP {
 		span.SetAttributes(attribute.Bool(attributeIPDiffers, true))
 		log.DebugContext(ctx, "IPs differ, stored IP must be updated", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "storedIP", storedIP)
@@ -227,7 +233,7 @@ func (monitor Monitor) updateRequired(ctx context.Context, ipinfo domain.IPInfo)
 
 	// Rule 3: storage says it is unchanged, but cross-check against the
 	// domain's live DNS record in case storage drifted from reality.
-	log.DebugContext(ctx, "Stored IP matches, cross-checking against domain DNS resolution", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName)
+	log.DebugContext(ctx, "stored IP matches, cross-checking against domain DNS resolution", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP, "domain", monitor.settings.DomainName)
 
 	retrievedIPFromDNS, dnsRetrievalErr := monitor.resolver.Resolve(ctx, monitor.settings.DomainName)
 
@@ -267,7 +273,7 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 
 	log := logger.FromContext(ctx).With("operation", "Monitor.applyUpdate")
 
-	log.DebugContext(ctx, "Notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+	log.DebugContext(ctx, "notifying about IP change", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 	notifyChangeMessage := fmt.Sprintf("Home IP has changed to %s.", ipinfo.IP)
 
 	notifyChangeError := monitor.notifier.Notify(ctx, monitor.settings.NotifyQueue, notifyChangeMessage)
@@ -285,7 +291,7 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 		return notifyChangeError
 	}
 
-	log.DebugContext(ctx, "Notifying about IP change in DNS update queue", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+	log.DebugContext(ctx, "notifying about IP change in DNS update queue", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	notifyDNSError := monitor.notifier.Notify(ctx, monitor.settings.UpdateQueue, ipinfo.IP)
 	if notifyDNSError != nil {
@@ -299,7 +305,7 @@ func (monitor Monitor) applyUpdate(ctx context.Context, ipinfo domain.IPInfo) er
 		return notifyDNSError
 	}
 
-	log.DebugContext(ctx, "Updating stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
+	log.DebugContext(ctx, "updating stored IP", "currentProvider", ipinfo.OrgName, "expectedProvider", monitor.settings.ISPName, "currentIP", ipinfo.IP)
 
 	updateIPError := monitor.store.SaveIP(ctx, ipinfo.IP)
 	if updateIPError != nil {
