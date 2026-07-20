@@ -424,7 +424,9 @@ func TestUpdateSaveIPError(t *testing.T) {
 // the global MeterProvider, so the test installs an SDK provider backed by a
 // ManualReader as the global one (mirroring how notify's tests install a
 // recorder-backed global TracerProvider) and restores the previous provider on
-// cleanup so later tests keep their no-op default.
+// cleanup so later tests keep their no-op default. The counter under test is
+// located by name: the scope also carries homeipmonitor.run.duration, which
+// records on every Run.
 // This test was written by an AI agent (Claude).
 func TestRunsCounter(t *testing.T) {
 
@@ -467,14 +469,16 @@ func TestRunsCounter(t *testing.T) {
 	if scopeMetrics.Scope.Name != componentName {
 		t.Errorf("expected scope name %q, got %q", componentName, scopeMetrics.Scope.Name)
 	}
-	if len(scopeMetrics.Metrics) != 1 {
-		t.Fatalf("expected 1 metric, got %d", len(scopeMetrics.Metrics))
+	var recordedMetric *metricdata.Metrics
+	for i, collectedMetric := range scopeMetrics.Metrics {
+		if collectedMetric.Name == "homeipmonitor.runs" {
+			recordedMetric = &scopeMetrics.Metrics[i]
+		}
+	}
+	if recordedMetric == nil {
+		t.Fatal("expected metric homeipmonitor.runs to be collected")
 	}
 
-	recordedMetric := scopeMetrics.Metrics[0]
-	if recordedMetric.Name != "homeipmonitor.runs" {
-		t.Errorf("expected metric name %q, got %q", "homeipmonitor.runs", recordedMetric.Name)
-	}
 	if recordedMetric.Unit != "{run}" {
 		t.Errorf("expected unit %q, got %q", "{run}", recordedMetric.Unit)
 	}
@@ -500,9 +504,9 @@ func TestRunsCounter(t *testing.T) {
 
 // TestIPChangesCounterOnAppliedUpdate asserts the "applied" semantics of
 // homeipmonitor.ip.changes: a run whose update completes (both notifications
-// and SaveIP succeed) records exactly one increment. Unlike TestRunsCounter,
-// the collected scope carries two metrics here (runs always increments too),
-// so the counter under test is located by name instead of by position.
+// and SaveIP succeed) records exactly one increment. The scope carries the
+// other metrics too (runs and run.duration record on every Run), so the
+// counter under test is located by name.
 // This test was written by an AI agent (Claude).
 func TestIPChangesCounterOnAppliedUpdate(t *testing.T) {
 

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
 	logger "github.com/a-castellano/go-services/infra/logger"
 	domain "github.com/a-castellano/home-ip-monitor/internal/domain"
@@ -37,13 +38,14 @@ type Settings struct {
 // (interfaces), so it has zero knowledge of HTTP, Redis or RabbitMQ. It also
 // carries its own metric instruments, created once in NewMonitor.
 type Monitor struct {
-	provider  domain.IPInfoProvider
-	resolver  domain.DNSResolver
-	store     domain.IPStore
-	notifier  domain.Notifier
-	settings  Settings
-	runs      metric.Int64Counter
-	ipChanges metric.Int64Counter
+	provider    domain.IPInfoProvider
+	resolver    domain.DNSResolver
+	store       domain.IPStore
+	notifier    domain.Notifier
+	settings    Settings
+	runs        metric.Int64Counter
+	ipChanges   metric.Int64Counter
+	runDuration metric.Float64Histogram
 }
 
 // NewMonitor builds a Monitor from its injected ports and settings. Since every
@@ -78,7 +80,16 @@ func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver do
 		log.ErrorContext(ctx, "cannot register homeipmonitor.ip.changes otel meter", "error", ipChangesMeterErr)
 	}
 
-	return Monitor{provider: provider, resolver: resolver, store: storage, notifier: notifier, settings: settings, runs: runs, ipChanges: ipChanges}
+	runDuration, runDurationErr := otelMeter.Float64Histogram(
+		"homeipmonitor.run.duration",
+		metric.WithDescription("Duration of the monitor run"),
+		metric.WithUnit("s"),
+	)
+	if runDurationErr != nil {
+		log.ErrorContext(ctx, "cannot register homeipmonitor.run.duration otel meter", "error", runDurationErr)
+	}
+
+	return Monitor{provider: provider, resolver: resolver, store: storage, notifier: notifier, settings: settings, runs: runs, ipChanges: ipChanges, runDuration: runDuration}
 }
 
 // Run executes the monitoring flow:
@@ -92,6 +103,11 @@ func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver do
 //	Rule 4: on update, notify both queues and only then persist the new IP, so a
 //	        failed notification never leaves storage ahead of the notifications.
 func (monitor Monitor) Run(ctx context.Context) error {
+
+	start := time.Now()
+	defer func() {
+		monitor.runDuration.Record(ctx, time.Since(start).Seconds())
+	}()
 
 	ctx, span := otel.Tracer(componentName).Start(ctx, "Monitor.Run",
 		trace.WithAttributes(
