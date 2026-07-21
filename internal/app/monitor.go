@@ -84,6 +84,7 @@ func NewMonitor(ctx context.Context, provider domain.IPInfoProvider, resolver do
 		"homeipmonitor.run.duration",
 		metric.WithDescription("Duration of the monitor run"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10),
 	)
 	if runDurationErr != nil {
 		log.ErrorContext(ctx, "cannot register homeipmonitor.run.duration otel meter", "error", runDurationErr)
