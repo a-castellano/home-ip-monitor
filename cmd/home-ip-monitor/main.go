@@ -41,8 +41,10 @@ func run(ctx context.Context) error {
 		log.ErrorContext(ctx, "telemetry setup failed", "error", err)
 	}
 	defer func() {
-		if err := shutdown(ctx); err != nil {
-			log.ErrorContext(ctx, "telemetry shutdown failed", "error", err)
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancelShutdown()
+		if err := shutdown(shutdownCtx); err != nil {
+			log.ErrorContext(shutdownCtx, "telemetry shutdown failed", "error", err)
 		}
 	}()
 
@@ -110,7 +112,7 @@ func main() {
 		systemlog.Fatal(err)
 	}
 
-	appLogger := logger.NewLogger(logConfig)
+	appLogger := logger.NewLogger(logConfig, opentelemetry.NewSlogHandler(logConfig.AppName))
 	ctx := logger.WithLogger(context.Background(), appLogger)
 
 	runError := run(ctx)
