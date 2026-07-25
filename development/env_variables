@@ -1,7 +1,9 @@
 export ENABLE_TELEMETRY=true
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://otelcollector:4317"
+
 
 export APP_NAME="home-ip-monitor"
-export SLOG_LEVEL="Debug"
+export SLOG_LEVEL="Info"
 export SLOG_FORMAT="JSON"
 
 export DOMAIN_NAME="maler.windmaker.net"
