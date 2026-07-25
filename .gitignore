@@ -26,7 +26,9 @@ coverage.html
 
 main
 home-ip-monitor
+home-ip-notifier
 
 plan/*
 
 development/.gomodcache/*
+development/env_variables_notifier
