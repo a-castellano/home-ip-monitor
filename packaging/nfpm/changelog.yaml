@@ -1,3 +1,13 @@
+- semver: 0.0.5
+  date: 2026-07-27T12:00:00+02:00
+  packager: Álvaro Castellano Vela <alvaro@windmaker.net>
+  changes:
+    - note: |-
+        Refactor codebase into a Clean Architecture layout (domain/app/infra), add structured logging and OpenTelemetry traces, metrics and logs
+      author:
+        name: Álvaro Castellano Vela
+        email: alvaro@windmaker.net
+
 - semver: 0.0.4
   date: 2025-08-04T22:22:00+01:00
   packager: Álvaro Castellano Vela <alvaro@windmaker.net>

@@ -1,5 +1,6 @@
 export ENABLE_TELEMETRY=true
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://otelcollector:4317"
+export OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE="delta"
 
 
 export APP_NAME="home-ip-monitor"
