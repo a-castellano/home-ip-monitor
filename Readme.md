@@ -157,9 +157,11 @@ Logging is handled through [go-types `slog`](https://git.windmaker.net/a-castell
 
 OpenTelemetry configuration is handled through [go-types `opentelemetry`](https://git.windmaker.net/a-castellano/go-types). See the [Telemetry](#telemetry) section for what gets emitted.
 
-| Variable           | Description                                              | Default |
-| ------------------ | -------------------------------------------------------- | ------- |
-| `ENABLE_TELEMETRY` | Enables traces and metrics when set to `"true"` (opt-in) | `false` |
+| Variable                                            | Description                                                                                                     | Default                      |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `ENABLE_TELEMETRY`                                   | Enables traces, metrics and logs when set to `"true"` (opt-in)                                                  | `false`                       |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`                        | OTLP/gRPC collector endpoint. When set, traces/metrics/logs export here instead of standard output; the URL scheme (`http`/`https`) picks plaintext or TLS | _(unset, exports to stdout)_ |
+| `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`  | Standard OTel SDK variable selecting metric temporality (`cumulative` or `delta`); read directly by the SDK, not by go-types | SDK default (`cumulative`)   |
 
 #### Redis Configuration
 
@@ -197,6 +199,11 @@ sudo vim /etc/default/windmaker-home-ip-monitor
 APP_NAME="home-ip-monitor"
 SLOG_LEVEL="Info"
 SLOG_FORMAT="JSON"
+
+# Telemetry configuration (optional, opt-in)
+#ENABLE_TELEMETRY="true"
+#OTEL_EXPORTER_OTLP_ENDPOINT="http://otelcollector:4317"
+#OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE="delta"
 
 # Required configuration
 DOMAIN_NAME="your-domain.com"
@@ -305,9 +312,13 @@ The service also records the following metrics:
 `homeipmonitor.ip.changes` counts changes that were fully applied (both queues
 notified and the new IP persisted); a detected change whose update fails is not
 counted. The instrumented HTTP client additionally emits the standard
-`http.client.*` metrics via `otelhttp`. Traces and metrics are currently
-exported to standard output; metric data points carry exemplars linking them to
-the trace that produced them.
+`http.client.*` metrics via `otelhttp`. Metric data points carry exemplars
+linking them to the trace that produced them.
+
+Traces, metrics and logs are exported to standard output by default. Setting
+`OTEL_EXPORTER_OTLP_ENDPOINT` switches all three to OTLP over gRPC against that
+collector instead (the URL scheme picks plaintext vs TLS); the connection is
+lazy, so an unreachable collector does not stop the service from running.
 
 ## Development
 
