@@ -53,6 +53,8 @@ services:
     image: harbor.windmaker.net/limani/base_otelcol
     ports:
       - "55679:55679"
+    volumes:
+      - ./otel_config.yaml:/etc/otelcol-contrib/config.yaml:ro
     networks:
       home-ip-monitor-net:
         ipv4_address: 172.17.0.60
